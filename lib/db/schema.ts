@@ -37,7 +37,16 @@ export const boards = pgTable("boards", {
 export const members = pgTable("members", {
   id: uuid(),
   boardId: text("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
-  name: text("name").notNull()
+  name: text("name").notNull(),
+  avatarUrl: text("avatar_url")
+});
+export const photos = pgTable("photos", {
+  id: uuid(),
+  boardId: text("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  key: text("key").notNull(),
+  uploaderName: text("uploader_name"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow()
 });
 export const gameSessions = pgTable("game_sessions", {
   id: uuid(),

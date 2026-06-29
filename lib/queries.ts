@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, desc, count } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   boards,
@@ -7,7 +7,8 @@ import {
   expenses,
   attendees,
   payments,
-  settlements
+  settlements,
+  photos
 } from "@/lib/db/schema";
 import { computeBalances, type SessionInput } from "@/lib/domain/split";
 
@@ -32,6 +33,13 @@ export interface BoardSession {
 export interface BoardMember {
   id: string;
   name: string;
+  avatarUrl: string | null;
+}
+export interface BoardPhoto {
+  id: string;
+  url: string;
+  uploaderName: string | null;
+  createdAt: Date;
 }
 export interface BoardSettlement {
   id: string;
@@ -45,13 +53,36 @@ export interface BoardData {
   members: BoardMember[];
   sessions: BoardSession[];
   settlements: BoardSettlement[];
+  photos: BoardPhoto[];
   balances: Record<string, number>;
 }
 export interface PublicBoardData {
-  board: { name: string };
+  board: { id: string; name: string; shareToken: string };
   members: BoardMember[];
   sessions: Omit<BoardSession, "note">[];
+  photos: BoardPhoto[];
   balances: Record<string, number>;
+}
+export interface BoardSummary {
+  id: string;
+  name: string;
+  shareToken: string;
+  memberCount: number;
+  sessionCount: number;
+}
+
+async function loadBoardPhotos(boardId: string): Promise<BoardPhoto[]> {
+  const rows = await db
+    .select({
+      id: photos.id,
+      url: photos.url,
+      uploaderName: photos.uploaderName,
+      createdAt: photos.createdAt
+    })
+    .from(photos)
+    .where(eq(photos.boardId, boardId))
+    .orderBy(desc(photos.createdAt));
+  return rows;
 }
 
 export async function getBoardsByOwner(userId: string) {
@@ -129,10 +160,11 @@ export async function getBoardData(boardId: string): Promise<BoardData | null> {
   const [board] = await db.select().from(boards).where(eq(boards.id, boardId));
   if (!board) return null;
 
-  const [memberRows, sessionList, settlementRows] = await Promise.all([
+  const [memberRows, sessionList, settlementRows, photoList] = await Promise.all([
     db.select().from(members).where(eq(members.boardId, boardId)),
     loadBoardSessions(boardId),
-    db.select().from(settlements).where(eq(settlements.boardId, boardId))
+    db.select().from(settlements).where(eq(settlements.boardId, boardId)),
+    loadBoardPhotos(boardId)
   ]);
 
   const settlementList: BoardSettlement[] = settlementRows.map((s) => ({
@@ -155,9 +187,10 @@ export async function getBoardData(boardId: string): Promise<BoardData | null> {
       shareToken: board.shareToken,
       ownerId: board.ownerId
     },
-    members: memberRows.map((m) => ({ id: m.id, name: m.name })),
+    members: memberRows.map((m) => ({ id: m.id, name: m.name, avatarUrl: m.avatarUrl })),
     sessions: sessionList,
     settlements: settlementList,
+    photos: photoList,
     balances
   };
 }
@@ -171,10 +204,11 @@ export async function getBoardByShareToken(
     .where(eq(boards.shareToken, token));
   if (!board) return null;
 
-  const [memberRows, sessionList, settlementRows] = await Promise.all([
+  const [memberRows, sessionList, settlementRows, photoList] = await Promise.all([
     db.select().from(members).where(eq(members.boardId, board.id)),
     loadBoardSessions(board.id),
-    db.select().from(settlements).where(eq(settlements.boardId, board.id))
+    db.select().from(settlements).where(eq(settlements.boardId, board.id)),
+    loadBoardPhotos(board.id)
   ]);
 
   const balances = computeBalances(
@@ -183,9 +217,43 @@ export async function getBoardByShareToken(
   );
 
   return {
-    board: { name: board.name },
-    members: memberRows.map((m) => ({ id: m.id, name: m.name })),
+    board: { id: board.id, name: board.name, shareToken: board.shareToken },
+    members: memberRows.map((m) => ({ id: m.id, name: m.name, avatarUrl: m.avatarUrl })),
     sessions: sessionList.map(({ note, ...rest }) => rest),
+    photos: photoList,
     balances
   };
+}
+
+export async function getAllBoards(): Promise<BoardSummary[]> {
+  const boardRows = await db
+    .select({ id: boards.id, name: boards.name, shareToken: boards.shareToken })
+    .from(boards)
+    .orderBy(desc(boards.createdAt));
+  if (boardRows.length === 0) return [];
+
+  const boardIds = boardRows.map((b) => b.id);
+  const [memberCounts, sessionCounts] = await Promise.all([
+    db
+      .select({ boardId: members.boardId, value: count() })
+      .from(members)
+      .where(inArray(members.boardId, boardIds))
+      .groupBy(members.boardId),
+    db
+      .select({ boardId: gameSessions.boardId, value: count() })
+      .from(gameSessions)
+      .where(inArray(gameSessions.boardId, boardIds))
+      .groupBy(gameSessions.boardId)
+  ]);
+
+  const memberCountByBoard = new Map(memberCounts.map((r) => [r.boardId, r.value]));
+  const sessionCountByBoard = new Map(sessionCounts.map((r) => [r.boardId, r.value]));
+
+  return boardRows.map((b) => ({
+    id: b.id,
+    name: b.name,
+    shareToken: b.shareToken,
+    memberCount: memberCountByBoard.get(b.id) ?? 0,
+    sessionCount: sessionCountByBoard.get(b.id) ?? 0
+  }));
 }
