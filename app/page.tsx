@@ -1,5 +1,6 @@
 import { getCurrentUserId } from "@/lib/auth";
 import { BoardList } from "@/components/board-list";
+import { PublicBoardList } from "@/components/public-board-list";
 import { CreateBoardForm } from "@/components/create-board-form";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,20 @@ function HomeHero() {
           desc="Gửi đường dẫn để cả nhóm cùng xem bảng số dư công khai."
           icon={<ShareIcon />}
         />
+      </section>
+
+      <section className="flex flex-col gap-5" aria-label="Tất cả nhóm">
+        <header className="flex flex-col gap-1.5">
+          <p className="label-eyebrow">Cộng đồng</p>
+          <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            Tất cả nhóm
+          </h2>
+          <p className="text-muted">
+            Xem bảng số dư công khai của các nhóm. Đăng nhập để tạo và quản lý
+            nhóm của riêng bạn.
+          </p>
+        </header>
+        <PublicBoardList />
       </section>
     </main>
   );

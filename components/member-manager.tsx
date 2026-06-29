@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { BoardMember } from "@/lib/queries";
-import { addMember, renameMember, removeMember } from "@/lib/actions/members";
+import {
+  addMember,
+  renameMember,
+  removeMember,
+  setMemberAvatar,
+  removeMemberAvatar
+} from "@/lib/actions/members";
 
 interface MemberManagerProps {
   boardId: string;
@@ -159,24 +165,7 @@ export function MemberManager({
                 </form>
               ) : (
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span
-                      aria-hidden="true"
-                      className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent-soft text-base font-semibold text-accent"
-                    >
-                      {initial(member.name)}
-                    </span>
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate font-medium text-ink">
-                        {member.name}
-                      </span>
-                      {used.has(member.id) && (
-                        <span className="w-fit rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
-                          đã có trong buổi
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  <MemberAvatar member={member} usedInSession={used.has(member.id)} />
                   <div className="flex shrink-0 items-center gap-1">
                     <button
                       type="button"
@@ -203,6 +192,117 @@ export function MemberManager({
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function MemberAvatar({
+  member,
+  usedInSession
+}: {
+  member: BoardMember;
+  usedInSession: boolean;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    startTransition(async () => {
+      try {
+        await setMemberAvatar(member.id, fd);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Không tải được ảnh, thử lại sau");
+      }
+    });
+  }
+
+  function handleRemoveAvatar() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await removeMemberAvatar(member.id);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Không xoá được ảnh, thử lại sau");
+      }
+    });
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-base font-semibold text-accent">
+        {member.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={member.avatarUrl}
+            alt=""
+            aria-hidden="true"
+            className="h-10 w-10 rounded-full object-cover"
+          />
+        ) : (
+          <span aria-hidden="true">{initial(member.name)}</span>
+        )}
+        {isPending && (
+          <span className="absolute inset-0 grid place-items-center rounded-full bg-accent-soft text-accent">
+            <SpinnerIcon />
+          </span>
+        )}
+      </span>
+
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="truncate font-medium text-ink">{member.name}</span>
+        {usedInSession && (
+          <span className="w-fit rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+            đã có trong buổi
+          </span>
+        )}
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="sr-only"
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isPending}
+            className="inline-flex h-9 min-h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-xs font-medium text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-accent hover:text-accent disabled:opacity-60"
+          >
+            <CameraIcon />
+            {isPending ? "Đang tải…" : member.avatarUrl ? "Đổi ảnh" : "Thêm ảnh"}
+          </button>
+          {member.avatarUrl && (
+            <button
+              type="button"
+              onClick={handleRemoveAvatar}
+              disabled={isPending}
+              className="inline-flex h-9 min-h-9 items-center rounded-full border border-line bg-surface px-3 text-xs font-medium text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-danger hover:text-danger disabled:opacity-60"
+            >
+              Xoá ảnh
+            </button>
+          )}
+        </div>
+
+        {error && (
+          <p role="alert" className="text-xs text-danger">
+            {error}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -234,6 +334,23 @@ function EditIcon() {
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14.5 4h-5L8 6H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-4l-1.5-2Z" />
+      <circle cx="12" cy="13" r="3.2" />
+    </svg>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="animate-spin">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
   );
 }

@@ -4,6 +4,7 @@ import { getBoardData } from "@/lib/queries";
 import { getCurrentUserId } from "@/lib/auth";
 import { splitSession } from "@/lib/domain/split";
 import { BoardTabs } from "@/components/board-tabs";
+import { AlbumGallery } from "@/components/album-gallery";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,8 @@ export default async function BoardPage({ params }: { params: { id: string } }) 
         sessions={sessions}
         balances={data.balances}
       />
+
+      <AlbumGallery boardId={data.board.id} photos={data.photos} canDelete />
     </main>
   );
 }

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getBoardByShareToken } from "@/lib/queries";
 import { formatVnd } from "@/lib/domain/money";
 import { splitSession } from "@/lib/domain/split";
+import { AlbumGallery } from "@/components/album-gallery";
 
 export const dynamic = "force-dynamic";
 
@@ -134,6 +135,8 @@ export default async function SharePage({
           </ul>
         )}
       </section>
+
+      <AlbumGallery boardId={data.board.id} photos={data.photos} />
 
       <footer className="flex flex-col items-center gap-1 border-t border-line pt-6 text-center">
         <span className="inline-flex items-center gap-1.5 font-display text-sm font-semibold text-accent-2">
