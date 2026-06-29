@@ -1,0 +1,1 @@
+{"section":"SPEC §5.4 vs Plan §8.1","problem":"parseRows signature lệch: SPEC dùng parseRows(rows, existingMemberNames)->{newMembers}, Plan dùng parseRows(rows)->{members}","resolution":"Theo Plan (parser thuần, dedup member ở tầng import action §4.5)","phase":"P2"}
