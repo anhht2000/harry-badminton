@@ -14,7 +14,7 @@ import { requireBoardAccess, canManageBooks } from "@/lib/access";
 export interface SessionFormData {
   date: string;
   note?: string;
-  attendeeIds: string[];
+  attendees: { memberId: string; count: number }[];
   expenses: { label: string; amount: number }[];
   payments: { memberId: string; amount: number }[];
 }
@@ -35,10 +35,11 @@ async function loadBoardMemberIds(boardId: string): Promise<Set<string>> {
 
 function validate(data: SessionFormData, memberIds: Set<string>) {
   if (!DATE_RE.test(data.date)) throw new Error("Ngày không hợp lệ (YYYY-MM-DD)");
-  if (data.attendeeIds.length === 0) throw new Error("Cần ít nhất 1 người tham gia");
+  if (data.attendees.length === 0) throw new Error("Cần ít nhất 1 người tham gia");
 
-  for (const id of data.attendeeIds) {
-    if (!memberIds.has(id)) throw new Error("Người tham gia không thuộc board");
+  for (const a of data.attendees) {
+    if (!memberIds.has(a.memberId)) throw new Error("Người tham gia không thuộc board");
+    if (!isPositiveInt(a.count) || a.count > 50) throw new Error("Số suất không hợp lệ (1–50)");
   }
   for (const e of data.expenses) {
     if (!e.label.trim()) throw new Error("Khoản chi thiếu nội dung");
@@ -73,7 +74,7 @@ export async function createSession(boardId: string, data: SessionFormData) {
     }
 
     await tx.insert(attendees).values(
-      data.attendeeIds.map((memberId) => ({ sessionId: created.id, memberId }))
+      data.attendees.map((a) => ({ sessionId: created.id, memberId: a.memberId, count: a.count }))
     );
 
     if (data.payments.length > 0) {
@@ -127,7 +128,7 @@ export async function updateSession(sessionId: string, data: SessionFormData) {
     }
 
     await tx.insert(attendees).values(
-      data.attendeeIds.map((memberId) => ({ sessionId, memberId }))
+      data.attendees.map((a) => ({ sessionId, memberId: a.memberId, count: a.count }))
     );
 
     if (data.payments.length > 0) {

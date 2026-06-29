@@ -3,6 +3,8 @@ import { roundTo1000 } from "./money";
 export interface SessionInput {
   expenses: { amount: number }[];
   attendeeIds: string[];
+  // So suat moi attendee (nguoi di kem). Khong co -> 1 suat/nguoi.
+  attendeeCounts?: Record<string, number>;
   payments: { memberId: string; amount: number }[];
 }
 export interface SessionResult {
@@ -14,17 +16,18 @@ export interface SessionResult {
 
 export function splitSession(input: SessionInput): SessionResult {
   const total = input.expenses.reduce((s, e) => s + e.amount, 0);
-  const n = input.attendeeIds.length;
+  const headOf = (id: string) => Math.max(1, Math.floor(input.attendeeCounts?.[id] ?? 1));
+  const totalHeads = input.attendeeIds.reduce((s, id) => s + headOf(id), 0);
   const paid: Record<string, number> = {};
   for (const p of input.payments) paid[p.memberId] = (paid[p.memberId] ?? 0) + p.amount;
 
-  if (n === 0) return { total, perHead: 0, shares: {}, paid, net: {} };
+  if (input.attendeeIds.length === 0) return { total, perHead: 0, shares: {}, paid, net: {} };
 
-  const perHead = roundTo1000(total / n);
+  const perHead = roundTo1000(total / totalHeads);
   const shares: Record<string, number> = {};
-  for (const id of input.attendeeIds) shares[id] = perHead;
+  for (const id of input.attendeeIds) shares[id] = perHead * headOf(id);
 
-  const remainder = total - perHead * n;
+  const remainder = total - perHead * totalHeads;
   const payerIds = input.payments.map((p) => p.memberId);
   const bearer = payerIds.find((id) => input.attendeeIds.includes(id)) ?? input.attendeeIds[0];
   shares[bearer] += remainder;

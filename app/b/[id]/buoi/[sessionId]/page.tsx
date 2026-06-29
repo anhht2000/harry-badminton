@@ -45,7 +45,10 @@ export default async function EditSessionPage({
         initial={{
           date: session.date,
           note: session.note ?? "",
-          attendeeIds: session.attendeeIds,
+          attendees: session.attendeeIds.map((id) => ({
+            memberId: id,
+            count: session.attendeeCounts[id] ?? 1
+          })),
           expenses: session.expenses.map((e) => ({
             label: e.label,
             amount: e.amount

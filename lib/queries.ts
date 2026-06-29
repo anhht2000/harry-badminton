@@ -29,6 +29,7 @@ export interface BoardSession {
   note: string | null;
   expenses: BoardSessionExpense[];
   attendeeIds: string[];
+  attendeeCounts: Record<string, number>;
   payments: BoardSessionPayment[];
 }
 export interface BoardMember {
@@ -198,10 +199,14 @@ async function loadBoardSessions(boardId: string): Promise<BoardSession[]> {
   }
 
   const attendeesBySession = new Map<string, string[]>();
+  const countsBySession = new Map<string, Record<string, number>>();
   for (const a of attendeeRows) {
     const list = attendeesBySession.get(a.sessionId) ?? [];
     list.push(a.memberId);
     attendeesBySession.set(a.sessionId, list);
+    const counts = countsBySession.get(a.sessionId) ?? {};
+    counts[a.memberId] = a.count ?? 1;
+    countsBySession.set(a.sessionId, counts);
   }
 
   const paymentsBySession = new Map<string, BoardSessionPayment[]>();
@@ -217,6 +222,7 @@ async function loadBoardSessions(boardId: string): Promise<BoardSession[]> {
     note: s.note,
     expenses: expensesBySession.get(s.id) ?? [],
     attendeeIds: attendeesBySession.get(s.id) ?? [],
+    attendeeCounts: countsBySession.get(s.id) ?? {},
     payments: paymentsBySession.get(s.id) ?? []
   }));
 }
@@ -225,6 +231,7 @@ function toSessionInputs(sessions: BoardSession[]): SessionInput[] {
   return sessions.map((s) => ({
     expenses: s.expenses.map((e) => ({ amount: e.amount })),
     attendeeIds: s.attendeeIds,
+    attendeeCounts: s.attendeeCounts,
     payments: s.payments.map((p) => ({ memberId: p.memberId, amount: p.amount }))
   }));
 }
@@ -243,6 +250,7 @@ export async function loadBoardSessionNets(boardId: string): Promise<SessionNet[
     nets: splitSession({
       expenses: s.expenses.map((e) => ({ amount: e.amount })),
       attendeeIds: s.attendeeIds,
+      attendeeCounts: s.attendeeCounts,
       payments: s.payments.map((p) => ({ memberId: p.memberId, amount: p.amount }))
     }).net
   }));
@@ -282,6 +290,7 @@ export async function getBoardData(boardId: string): Promise<BoardData | null> {
     const { net } = splitSession({
       expenses: s.expenses.map((e) => ({ amount: e.amount })),
       attendeeIds: s.attendeeIds,
+      attendeeCounts: s.attendeeCounts,
       payments: s.payments.map((p) => ({ memberId: p.memberId, amount: p.amount }))
     });
     for (const [memberId, value] of Object.entries(net)) {

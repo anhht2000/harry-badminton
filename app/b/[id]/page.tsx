@@ -35,12 +35,13 @@ export default async function BoardPage({ params }: { params: { id: string } }) 
       const { total, perHead } = splitSession({
         expenses: s.expenses.map((e) => ({ amount: e.amount })),
         attendeeIds: s.attendeeIds,
+        attendeeCounts: s.attendeeCounts,
         payments: s.payments.map((p) => ({ memberId: p.memberId, amount: p.amount }))
       });
       return {
         id: s.id,
         date: s.date,
-        attendeeCount: s.attendeeIds.length,
+        attendeeCount: s.attendeeIds.reduce((n, id) => n + (s.attendeeCounts[id] ?? 1), 0),
         total,
         perHead
       };

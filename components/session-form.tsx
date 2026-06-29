@@ -44,7 +44,7 @@ function toAmount(raw: string): number {
 export interface SessionFormInitial {
   date: string;
   note: string;
-  attendeeIds: string[];
+  attendees: { memberId: string; count: number }[];
   expenses: { label: string; amount: number }[];
   payments: { memberId: string; amount: number }[];
 }
@@ -68,8 +68,9 @@ export function SessionForm({
 
   const [date, setDate] = useState(() => initial?.date ?? todayLocal());
   const [note, setNote] = useState(() => initial?.note ?? "");
-  const [attendeeIds, setAttendeeIds] = useState<Set<string>>(() =>
-    initial ? new Set(initial.attendeeIds) : new Set(members.map((m) => m.id))
+  // Map memberId -> so suat (count). Co trong map = co tham gia (count >= 1).
+  const [attendees, setAttendees] = useState<Map<string, number>>(() =>
+    initial ? new Map(initial.attendees.map((a) => [a.memberId, a.count])) : new Map()
   );
   const [expenseRows, setExpenseRows] = useState<ExpenseRow[]>(() =>
     initial && initial.expenses.length > 0
@@ -95,22 +96,38 @@ export function SessionForm({
     [expenseRows]
   );
 
+  const totalHeads = useMemo(
+    () => [...attendees.values()].reduce((s, n) => s + n, 0),
+    [attendees]
+  );
+
   const split = useMemo(() => {
     const expenses = expenseRows
       .map((e) => ({ amount: toAmount(e.amount) }))
       .filter((e) => e.amount > 0);
-    const ids = [...attendeeIds];
+    const ids = [...attendees.keys()];
+    const attendeeCounts = Object.fromEntries(attendees);
     const payments = paymentRows
       .map((p) => ({ memberId: p.memberId, amount: toAmount(p.amount) }))
       .filter((p) => p.memberId && p.amount > 0);
-    return splitSession({ expenses, attendeeIds: ids, payments });
-  }, [expenseRows, attendeeIds, paymentRows]);
+    return splitSession({ expenses, attendeeIds: ids, attendeeCounts, payments });
+  }, [expenseRows, attendees, paymentRows]);
 
   function toggleAttendee(id: string) {
-    setAttendeeIds((prev) => {
-      const next = new Set(prev);
+    setAttendees((prev) => {
+      const next = new Map(prev);
       if (next.has(id)) next.delete(id);
-      else next.add(id);
+      else next.set(id, 1);
+      return next;
+    });
+  }
+
+  function changeCount(id: string, delta: number) {
+    setAttendees((prev) => {
+      const next = new Map(prev);
+      const v = (next.get(id) ?? 0) + delta;
+      if (v <= 0) next.delete(id);
+      else next.set(id, Math.min(50, v));
       return next;
     });
   }
@@ -156,12 +173,12 @@ export function SessionForm({
     const expenses = expenseRows
       .map((row) => ({ label: row.label.trim(), amount: toAmount(row.amount) }))
       .filter((row) => row.amount > 0);
-    const ids = [...attendeeIds];
+    const attendeeList = [...attendees].map(([memberId, count]) => ({ memberId, count }));
     const payments = paymentRows
       .map((row) => ({ memberId: row.memberId, amount: toAmount(row.amount) }))
       .filter((row) => row.memberId && row.amount > 0);
 
-    if (ids.length === 0) {
+    if (attendeeList.length === 0) {
       setError("Cần tick ít nhất 1 người tham gia");
       return;
     }
@@ -180,7 +197,7 @@ export function SessionForm({
         const payload = {
           date,
           note: note.trim() || undefined,
-          attendeeIds: ids,
+          attendees: attendeeList,
           expenses,
           payments
         };
@@ -237,9 +254,12 @@ export function SessionForm({
         <div className="flex items-center justify-between gap-3">
           <p className="label-eyebrow">Người tham gia</p>
           <span className="num text-sm font-medium text-muted">
-            {attendeeIds.size}/{members.length}
+            {attendees.size}/{members.length} · {totalHeads} suất
           </span>
         </div>
+        <p className="text-xs text-muted">
+          Bấm tên để chọn. Người dẫn khách thì tăng số suất (×2, ×3…).
+        </p>
         {members.length === 0 ? (
           <p className="text-sm text-muted">
             Chưa có thành viên nào trong nhóm.
@@ -247,22 +267,57 @@ export function SessionForm({
         ) : (
           <div className="flex flex-wrap gap-2">
             {members.map((m) => {
-              const on = attendeeIds.has(m.id);
+              const count = attendees.get(m.id);
+              const on = count != null;
+              if (!on) {
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    aria-pressed={false}
+                    onClick={() => toggleAttendee(m.id)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-4 py-2 text-sm font-medium text-ink transition-[background-color,border-color,color] duration-[var(--dur-fast)] ease-soft hover:border-accent hover:text-accent"
+                  >
+                    {m.name}
+                  </button>
+                );
+              }
               return (
-                <button
+                <span
                   key={m.id}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => toggleAttendee(m.id)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-[background-color,border-color,color] duration-[var(--dur-fast)] ease-soft ${
-                    on
-                      ? "border-accent bg-accent text-on-accent"
-                      : "border-line bg-surface text-ink hover:border-accent hover:text-accent"
-                  }`}
+                  className="inline-flex items-center rounded-full border border-accent bg-accent text-on-accent"
                 >
-                  {on && <CheckIcon />}
-                  {m.name}
-                </button>
+                  <button
+                    type="button"
+                    aria-pressed
+                    onClick={() => toggleAttendee(m.id)}
+                    className="inline-flex items-center gap-1.5 py-2 pl-3.5 pr-2 text-sm font-medium"
+                  >
+                    <CheckIcon />
+                    {m.name}
+                  </button>
+                  <span className="mr-1 inline-flex items-center gap-1 rounded-full bg-black/10 px-1 py-0.5">
+                    <button
+                      type="button"
+                      aria-label={`Giảm suất ${m.name}`}
+                      onClick={() => changeCount(m.id, -1)}
+                      className="grid h-6 w-6 place-items-center rounded-full text-base font-bold leading-none hover:bg-black/15"
+                    >
+                      −
+                    </button>
+                    <span className="num min-w-[1.5rem] text-center text-sm font-bold">
+                      ×{count}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Tăng suất ${m.name}`}
+                      onClick={() => changeCount(m.id, 1)}
+                      className="grid h-6 w-6 place-items-center rounded-full text-base font-bold leading-none hover:bg-black/15"
+                    >
+                      +
+                    </button>
+                  </span>
+                </span>
               );
             })}
           </div>
@@ -424,9 +479,11 @@ export function SessionForm({
       </section>
 
       <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-hero p-5 shadow-card">
-        <span className="flex flex-col">
-          <span className="label-eyebrow">Mỗi người</span>
-          <span className="text-sm text-muted">{attendeeIds.size} người tham gia</span>
+        <span className="flex flex-col gap-1">
+          <span className="label-eyebrow">Mỗi suất</span>
+          <span className="text-sm text-muted">
+            {totalHeads} suất · {attendees.size} người
+          </span>
         </span>
         <span className="num text-3xl font-bold text-money">
           {formatVnd(split.perHead)}

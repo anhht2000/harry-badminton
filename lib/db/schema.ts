@@ -69,7 +69,9 @@ export const expenses = pgTable("expenses", {
 });
 export const attendees = pgTable("attendees", {
   sessionId: text("session_id").notNull().references(() => gameSessions.id, { onDelete: "cascade" }),
-  memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" })
+  memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  // So suat 1 thanh vien chiu (vi co nguoi di kem) — vd A x2 = 2 suat. Mac dinh 1.
+  count: integer("count").notNull().default(1)
 }, (t) => ({ pk: primaryKey({ columns: [t.sessionId, t.memberId] }) }));
 export const payments = pgTable("payments", {
   id: uuid(),
