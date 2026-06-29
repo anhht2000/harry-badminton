@@ -43,7 +43,7 @@ function HomeHero() {
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-12 px-4 py-10 sm:px-6">
       <section className="relative overflow-hidden rounded-lg border border-line bg-surface bg-hero p-8 shadow-lg sm:p-12">
         <div className="flex max-w-2xl flex-col gap-5">
-          <p className="label-eyebrow">Chia tiền thể thao</p>
+          <p className="label-eyebrow">Chia tiền cầu lông</p>
           <h1 className="font-display text-4xl font-bold leading-[1.08] tracking-tight text-ink sm:text-5xl">
             Chia đều chi phí mỗi buổi tập, theo dõi nợ cả nhóm
           </h1>

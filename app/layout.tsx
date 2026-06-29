@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Roboto } from "next/font/google";
+import { Roboto, Caveat } from "next/font/google";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 // Font body + heading — Roboto: am, sach, than thien. Bold 700 cho heading.
@@ -12,6 +13,14 @@ const roboto = Roboto({
   display: "swap"
 });
 
+// Font viet tay cho chu ky ca nhan o footer.
+const caveat = Caveat({
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  variable: "--font-caveat",
+  display: "swap"
+});
+
 // Script chong FOUC: dat class .dark tren <html> truoc khi React hydrate.
 // App chua luu theme server -> chi doc localStorage 'theme', fallback prefers.
 const themeInitScript = `
@@ -19,15 +28,16 @@ const themeInitScript = `
 `;
 
 export const metadata: Metadata = {
-  title: "Chia Tiền Thể Thao",
-  description: "Chia đều chi phí mỗi buổi và theo dõi số nợ"
+  title: "Chia Cầu — Chia tiền cầu lông",
+  description:
+    "Chia đều chi phí mỗi buổi cầu lông cho người có mặt và theo dõi số nợ cả nhóm."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="vi"
-      className={roboto.variable}
+      className={`${roboto.variable} ${caveat.variable}`}
       suppressHydrationWarning
     >
       <head>
@@ -36,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <SiteHeader />
         {children}
+        <SiteFooter />
 
         <div className="pointer-events-none fixed bottom-4 right-4 z-30 flex justify-end">
           <div className="pointer-events-auto">

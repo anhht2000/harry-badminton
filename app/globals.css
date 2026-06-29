@@ -130,6 +130,12 @@
   .dark .label-eyebrow { color: var(--accent-2); }
 
   .num { font-variant-numeric: tabular-nums; }   /* cot tien thang hang */
+
+  /* Chu ky ca nhan o footer — font viet tay Caveat */
+  .signature {
+    font-family: var(--font-caveat), "Segoe Script", cursive;
+    font-weight: 700;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
