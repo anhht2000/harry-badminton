@@ -1,8 +1,14 @@
 import Link from "next/link";
-import { getBoardsByOwner } from "@/lib/queries";
+import { getBoardsForUser } from "@/lib/queries";
+
+const ROLE_LABEL = {
+  leader: "Trưởng nhóm",
+  secretary: "Thư ký",
+  member: "Thành viên"
+} as const;
 
 export async function BoardList({ userId }: { userId: string }) {
-  const boards = await getBoardsByOwner(userId);
+  const boards = await getBoardsForUser(userId);
 
   if (boards.length === 0) {
     return (
@@ -40,9 +46,21 @@ export async function BoardList({ userId }: { userId: string }) {
                 <ArrowIcon />
               </span>
             </div>
-            <span className="font-display text-lg font-semibold leading-snug text-ink">
-              {board.name}
-            </span>
+            <div className="flex flex-col gap-2">
+              <span className="font-display text-lg font-semibold leading-snug text-ink">
+                {board.name}
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="w-fit rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+                  {ROLE_LABEL[board.role]}
+                </span>
+                {!board.active && (
+                  <span className="w-fit rounded-full border border-danger px-2 py-0.5 text-xs font-medium text-danger">
+                    Bản nháp
+                  </span>
+                )}
+              </div>
+            </div>
           </Link>
         </li>
       ))}

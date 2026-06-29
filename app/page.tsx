@@ -1,14 +1,18 @@
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId, getCurrentUserEmail } from "@/lib/auth";
+import { isSuperAdmin } from "@/lib/access";
 import { BoardList } from "@/components/board-list";
 import { PublicBoardList } from "@/components/public-board-list";
+import { DraftBoardsAdmin } from "@/components/draft-boards-admin";
 import { CreateBoardForm } from "@/components/create-board-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   let userId: string | null = null;
+  let superAdmin = false;
   try {
     userId = await getCurrentUserId();
+    superAdmin = isSuperAdmin(await getCurrentUserEmail());
   } catch {
     userId = null;
   }
@@ -34,6 +38,52 @@ export default async function Home() {
       </section>
 
       <BoardList userId={userId} />
+
+      <section
+        className="relative overflow-hidden rounded-lg border border-accent bg-accent-soft p-6 shadow-lg sm:p-8"
+        aria-label="Nhóm gợi ý"
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-accent opacity-20 blur-3xl"
+        />
+        <header className="relative flex flex-col gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-accent text-on-accent shadow-card">
+              <CommunityIcon />
+            </span>
+            <p className="label-eyebrow">Cộng đồng</p>
+          </div>
+          <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            Nhóm gợi ý
+          </h2>
+          <p className="max-w-prose text-muted">
+            Khám phá bảng số dư công khai của các nhóm khác trong cộng đồng.
+          </p>
+        </header>
+        <div className="relative mt-6">
+          <PublicBoardList excludeOwnerId={userId} />
+        </div>
+      </section>
+
+      {superAdmin && (
+        <section
+          className="flex flex-col gap-4 rounded-lg border border-danger bg-surface p-6 shadow-card sm:p-8"
+          aria-label="Bản nháp"
+        >
+          <header className="flex flex-col gap-1.5">
+            <p className="label-eyebrow text-danger">Super admin</p>
+            <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+              Nhóm bản nháp
+            </h2>
+            <p className="max-w-prose text-muted">
+              Các nhóm đã bị deactivate (ẩn). Chỉ super admin thấy mục này — mở để xem
+              hoặc khôi phục.
+            </p>
+          </header>
+          <DraftBoardsAdmin />
+        </section>
+      )}
     </main>
   );
 }

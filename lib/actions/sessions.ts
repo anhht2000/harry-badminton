@@ -3,15 +3,13 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  boards,
   members,
   gameSessions,
   expenses,
   attendees,
   payments
 } from "@/lib/db/schema";
-import { requireUserId } from "@/lib/auth";
-import { assertOwner } from "@/lib/domain/guard";
+import { requireBoardAccess, canManageBooks } from "@/lib/access";
 
 export interface SessionFormData {
   date: string;
@@ -53,9 +51,7 @@ function validate(data: SessionFormData, memberIds: Set<string>) {
 }
 
 export async function createSession(boardId: string, data: SessionFormData) {
-  const userId = await requireUserId();
-  const [board] = await db.select().from(boards).where(eq(boards.id, boardId));
-  assertOwner(board, userId);
+  await requireBoardAccess(boardId, canManageBooks);
 
   const memberIds = await loadBoardMemberIds(boardId);
   validate(data, memberIds);
@@ -98,15 +94,13 @@ export async function createSession(boardId: string, data: SessionFormData) {
 }
 
 export async function updateSession(sessionId: string, data: SessionFormData) {
-  const userId = await requireUserId();
   const [row] = await db
-    .select({ boardId: gameSessions.boardId, ownerId: boards.ownerId })
+    .select({ boardId: gameSessions.boardId })
     .from(gameSessions)
-    .innerJoin(boards, eq(gameSessions.boardId, boards.id))
     .where(eq(gameSessions.id, sessionId));
 
   if (!row) throw new Error("Không tìm thấy buổi");
-  assertOwner({ ownerId: row.ownerId }, userId);
+  await requireBoardAccess(row.boardId, canManageBooks);
 
   const boardId = row.boardId;
   const memberIds = await loadBoardMemberIds(boardId);
@@ -151,15 +145,13 @@ export async function updateSession(sessionId: string, data: SessionFormData) {
 }
 
 export async function deleteSession(sessionId: string) {
-  const userId = await requireUserId();
   const [row] = await db
-    .select({ boardId: gameSessions.boardId, ownerId: boards.ownerId })
+    .select({ boardId: gameSessions.boardId })
     .from(gameSessions)
-    .innerJoin(boards, eq(gameSessions.boardId, boards.id))
     .where(eq(gameSessions.id, sessionId));
 
   if (!row) throw new Error("Không tìm thấy buổi");
-  assertOwner({ ownerId: row.ownerId }, userId);
+  await requireBoardAccess(row.boardId, canManageBooks);
 
   await db.delete(gameSessions).where(eq(gameSessions.id, sessionId));
   revalidatePath(`/b/${row.boardId}`);

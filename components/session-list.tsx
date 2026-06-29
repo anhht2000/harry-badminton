@@ -17,22 +17,26 @@ function formatDate(iso: string): string {
 
 export function SessionList({
   boardId,
-  sessions
+  sessions,
+  canManage = false
 }: {
   boardId: string;
   sessions: SessionRow[];
+  canManage?: boolean;
 }) {
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-display text-lg font-semibold text-ink">Các buổi</h2>
-        <Link
-          href={`/b/${boardId}/buoi`}
-          className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-accent px-4 text-sm font-medium text-on-accent no-underline shadow-card transition-[transform,background-color] duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 hover:bg-accent-2"
-        >
-          <PlusIcon />
-          Thêm buổi
-        </Link>
+        {canManage && (
+          <Link
+            href={`/b/${boardId}/buoi`}
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-accent px-4 text-sm font-medium text-on-accent no-underline shadow-card transition-[transform,background-color] duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 hover:bg-accent-2"
+          >
+            <PlusIcon />
+            Thêm buổi
+          </Link>
+        )}
       </div>
 
       {sessions.length === 0 ? (

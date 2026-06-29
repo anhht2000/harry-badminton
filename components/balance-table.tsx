@@ -14,6 +14,7 @@ interface BalanceTableProps {
   members: BoardMember[];
   balances: Record<string, number>;
   sessionDebts: Record<string, MemberSessionDebt[]>;
+  canManage?: boolean;
 }
 
 function shortDate(iso: string): string {
@@ -21,7 +22,7 @@ function shortDate(iso: string): string {
   return `${d}/${m}`;
 }
 
-export function BalanceTable({ boardId, members, balances, sessionDebts }: BalanceTableProps) {
+export function BalanceTable({ boardId, members, balances, sessionDebts, canManage = false }: BalanceTableProps) {
   if (members.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line bg-surface px-6 py-12 text-center">
@@ -68,7 +69,7 @@ export function BalanceTable({ boardId, members, balances, sessionDebts }: Balan
                 </span>
               </div>
 
-              {debts.length > 0 && (
+              {debts.length > 0 && canManage && (
                 <SessionChecklist boardId={boardId} memberId={member.id} debts={debts} />
               )}
             </li>

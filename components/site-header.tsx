@@ -1,17 +1,23 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { auth, signOut } from "@/lib/auth";
 import { AuthButtons } from "@/components/auth-buttons";
+import { AccountMenu } from "@/components/account-menu";
 import { ShuttlecockMark } from "@/components/brand-logo";
 
 // Header dung chung: sticky, backdrop-blur, brand ben trai + auth ben phai.
 // Goi auth() trong try/catch — loi DB coi nhu chua dang nhap, KHONG vo build.
 export async function SiteHeader() {
-  let user: { name?: string | null } | null = null;
+  let user: { id?: string | null; name?: string | null } | null = null;
   try {
     const session = await auth();
     user = session?.user ?? null;
   } catch {
     user = null;
+  }
+
+  async function doSignOut() {
+    "use server";
+    await signOut({ redirectTo: "/" });
   }
 
   return (
@@ -30,7 +36,11 @@ export async function SiteHeader() {
           </span>
         </Link>
 
-        <AuthButtons user={user} />
+        {user?.id ? (
+          <AccountMenu name={user.name ?? null} accountId={user.id} signOutAction={doSignOut} />
+        ) : (
+          <AuthButtons user={null} />
+        )}
       </div>
     </header>
   );

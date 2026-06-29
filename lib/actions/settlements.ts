@@ -2,9 +2,8 @@
 import { revalidatePath } from "next/cache";
 import { eq, and, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boards, members, settlements } from "@/lib/db/schema";
-import { requireUserId } from "@/lib/auth";
-import { assertOwner } from "@/lib/domain/guard";
+import { members, settlements } from "@/lib/db/schema";
+import { requireBoardAccess, canManageBooks } from "@/lib/access";
 import { loadBoardSessionNets } from "@/lib/queries";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -14,12 +13,6 @@ function todayIso(): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${m}-${day}`;
-}
-
-async function loadOwnedBoard(boardId: string, userId: string) {
-  const [b] = await db.select().from(boards).where(eq(boards.id, boardId));
-  assertOwner(b, userId);
-  return b;
 }
 
 async function assertMemberInBoard(memberId: string, boardId: string) {
@@ -34,8 +27,7 @@ export async function addSettlement(
   date: string,
   note?: string
 ) {
-  const userId = await requireUserId();
-  await loadOwnedBoard(boardId, userId);
+  await requireBoardAccess(boardId, canManageBooks);
   if (!Number.isInteger(amount) || amount <= 0) throw new Error("Số tiền phải là số nguyên dương");
   if (!DATE_RE.test(date)) throw new Error("Ngày sai định dạng (YYYY-MM-DD)");
   const [member] = await db.select().from(members).where(eq(members.id, memberId));
@@ -49,10 +41,9 @@ export async function addSettlement(
 }
 
 export async function removeSettlement(id: string) {
-  const userId = await requireUserId();
   const [s] = await db.select().from(settlements).where(eq(settlements.id, id));
   if (!s) throw new Error("Không tìm thấy settlement");
-  await loadOwnedBoard(s.boardId, userId);
+  await requireBoardAccess(s.boardId, canManageBooks);
   await db.delete(settlements).where(eq(settlements.id, id));
   revalidatePath(`/b/${s.boardId}`);
 }
@@ -64,8 +55,7 @@ export async function markSessionPaid(
   memberId: string,
   sessionId: string
 ) {
-  const userId = await requireUserId();
-  await loadOwnedBoard(boardId, userId);
+  await requireBoardAccess(boardId, canManageBooks);
   await assertMemberInBoard(memberId, boardId);
 
   const nets = await loadBoardSessionNets(boardId);
@@ -90,8 +80,7 @@ export async function unmarkSessionPaid(
   memberId: string,
   sessionId: string
 ) {
-  const userId = await requireUserId();
-  await loadOwnedBoard(boardId, userId);
+  await requireBoardAccess(boardId, canManageBooks);
   await db
     .delete(settlements)
     .where(
@@ -105,8 +94,7 @@ export async function unmarkSessionPaid(
 }
 
 export async function markAllSessionsPaid(boardId: string, memberId: string) {
-  const userId = await requireUserId();
-  await loadOwnedBoard(boardId, userId);
+  await requireBoardAccess(boardId, canManageBooks);
   await assertMemberInBoard(memberId, boardId);
 
   const nets = await loadBoardSessionNets(boardId);
@@ -132,8 +120,7 @@ export async function markAllSessionsPaid(boardId: string, memberId: string) {
 }
 
 export async function unmarkAllSessionsPaid(boardId: string, memberId: string) {
-  const userId = await requireUserId();
-  await loadOwnedBoard(boardId, userId);
+  await requireBoardAccess(boardId, canManageBooks);
   await db
     .delete(settlements)
     .where(

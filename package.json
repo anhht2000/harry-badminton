@@ -11,7 +11,8 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs migrate",
-    "db:push": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs push"
+    "db:push": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs push",
+    "db:seed": "node --env-file=.env.local scripts/seed.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.2",

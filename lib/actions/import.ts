@@ -3,21 +3,17 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  boards,
   members,
   gameSessions,
   expenses,
   attendees,
   payments
 } from "@/lib/db/schema";
-import { requireUserId } from "@/lib/auth";
-import { assertOwner } from "@/lib/domain/guard";
+import { requireBoardAccess, canManageBooks } from "@/lib/access";
 import type { ParseResult } from "@/lib/domain/import-parse";
 
 export async function importSessions(boardId: string, parsed: ParseResult): Promise<{ created: number }> {
-  const userId = await requireUserId();
-  const [board] = await db.select().from(boards).where(eq(boards.id, boardId));
-  assertOwner(board, userId);
+  await requireBoardAccess(boardId, canManageBooks);
 
   if (parsed.errors.length > 0) throw new Error("Dữ liệu import còn lỗi, không thể nhập");
   if (parsed.sessions.length === 0) return { created: 0 };

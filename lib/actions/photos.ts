@@ -3,8 +3,7 @@ import { revalidatePath } from "next/cache";
 import { eq, count } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boards, photos } from "@/lib/db/schema";
-import { requireUserId } from "@/lib/auth";
-import { assertOwner } from "@/lib/domain/guard";
+import { requireBoardAccess, canManageBooks } from "@/lib/access";
 import { validateImage } from "@/lib/domain/image";
 import { uploadImage, deleteImage } from "@/lib/storage";
 
@@ -43,11 +42,9 @@ export async function uploadBoardPhoto(boardId: string, formData: FormData) {
 }
 
 export async function deleteBoardPhoto(photoId: string) {
-  const userId = await requireUserId();
   const [photo] = await db.select().from(photos).where(eq(photos.id, photoId));
   if (!photo) throw new Error("Không tìm thấy ảnh");
-  const [board] = await db.select().from(boards).where(eq(boards.id, photo.boardId));
-  assertOwner(board, userId);
+  const { board } = await requireBoardAccess(photo.boardId, canManageBooks);
 
   await deleteImage(photo.key);
   await db.delete(photos).where(eq(photos.id, photoId));

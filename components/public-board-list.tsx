@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { getAllBoards } from "@/lib/queries";
 
-export async function PublicBoardList() {
-  const boards = await getAllBoards();
+export async function PublicBoardList({
+  excludeOwnerId
+}: {
+  excludeOwnerId?: string;
+} = {}) {
+  const boards = await getAllBoards(excludeOwnerId);
 
   if (boards.length === 0) {
     return (
@@ -14,8 +18,9 @@ export async function PublicBoardList() {
           Chưa có nhóm nào
         </h3>
         <p className="max-w-prose text-sm text-muted">
-          Hãy đăng nhập ở góc trên để tạo nhóm đầu tiên và bắt đầu chia tiền cho
-          cả nhóm.
+          {excludeOwnerId
+            ? "Hiện chưa có nhóm nào khác để gợi ý."
+            : "Hãy đăng nhập ở góc trên để tạo nhóm đầu tiên và bắt đầu chia tiền cho cả nhóm."}
         </p>
       </div>
     );

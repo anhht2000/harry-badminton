@@ -1,8 +1,9 @@
-import { eq, inArray, desc, count } from "drizzle-orm";
+import { eq, ne, and, inArray, desc, count } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   boards,
   members,
+  users,
   gameSessions,
   expenses,
   attendees,
@@ -34,6 +35,9 @@ export interface BoardMember {
   id: string;
   name: string;
   avatarUrl: string | null;
+  userId: string | null;
+  role: "secretary" | "member";
+  linkedName: string | null;
 }
 export interface BoardPhoto {
   id: string;
@@ -55,7 +59,7 @@ export interface MemberSessionDebt {
   paid: boolean;
 }
 export interface BoardData {
-  board: { id: string; name: string; shareToken: string; ownerId: string };
+  board: { id: string; name: string; shareToken: string; ownerId: string; active: boolean };
   members: BoardMember[];
   sessions: BoardSession[];
   settlements: BoardSettlement[];
@@ -94,6 +98,68 @@ async function loadBoardPhotos(boardId: string): Promise<BoardPhoto[]> {
 
 export async function getBoardsByOwner(userId: string) {
   return db.select().from(boards).where(eq(boards.ownerId, userId));
+}
+
+export interface UserBoard {
+  id: string;
+  name: string;
+  role: "leader" | "secretary" | "member";
+  active: boolean;
+}
+
+// Nhom user co the truy cap: so huu (truong nhom) HOAC da link member.
+export async function getBoardsForUser(userId: string): Promise<UserBoard[]> {
+  const owned = await db
+    .select({ id: boards.id, name: boards.name, active: boards.active })
+    .from(boards)
+    .where(eq(boards.ownerId, userId));
+
+  const linked = await db
+    .select({ id: boards.id, name: boards.name, active: boards.active, role: members.role })
+    .from(members)
+    .innerJoin(boards, eq(members.boardId, boards.id))
+    .where(and(eq(members.userId, userId), ne(boards.ownerId, userId)));
+
+  const result: UserBoard[] = owned.map((b) => ({ id: b.id, name: b.name, role: "leader", active: b.active }));
+  const seen = new Set(result.map((b) => b.id));
+  for (const b of linked) {
+    if (seen.has(b.id)) continue;
+    seen.add(b.id);
+    // Nhom draft chi hien voi truong nhom; voi member/thu ky thi an.
+    if (!b.active) continue;
+    result.push({
+      id: b.id,
+      name: b.name,
+      role: b.role === "secretary" ? "secretary" : "member",
+      active: b.active
+    });
+  }
+  return result;
+}
+
+// Doc danh sach member kem account da link (ten/email) cua mot board.
+async function loadBoardMembers(boardId: string): Promise<BoardMember[]> {
+  const rows = await db
+    .select({
+      id: members.id,
+      name: members.name,
+      avatarUrl: members.avatarUrl,
+      userId: members.userId,
+      role: members.role,
+      linkedName: users.name,
+      linkedEmail: users.email
+    })
+    .from(members)
+    .leftJoin(users, eq(members.userId, users.id))
+    .where(eq(members.boardId, boardId));
+  return rows.map((m) => ({
+    id: m.id,
+    name: m.name,
+    avatarUrl: m.avatarUrl,
+    userId: m.userId,
+    role: m.role === "secretary" ? "secretary" : "member",
+    linkedName: m.userId ? m.linkedName ?? m.linkedEmail ?? null : null
+  }));
 }
 
 async function loadBoardSessions(boardId: string): Promise<BoardSession[]> {
@@ -186,8 +252,8 @@ export async function getBoardData(boardId: string): Promise<BoardData | null> {
   const [board] = await db.select().from(boards).where(eq(boards.id, boardId));
   if (!board) return null;
 
-  const [memberRows, sessionList, settlementRows, photoList] = await Promise.all([
-    db.select().from(members).where(eq(members.boardId, boardId)),
+  const [memberList, sessionList, settlementRows, photoList] = await Promise.all([
+    loadBoardMembers(boardId),
     loadBoardSessions(boardId),
     db.select().from(settlements).where(eq(settlements.boardId, boardId)),
     loadBoardPhotos(boardId)
@@ -237,9 +303,10 @@ export async function getBoardData(boardId: string): Promise<BoardData | null> {
       id: board.id,
       name: board.name,
       shareToken: board.shareToken,
-      ownerId: board.ownerId
+      ownerId: board.ownerId,
+      active: board.active
     },
-    members: memberRows.map((m) => ({ id: m.id, name: m.name, avatarUrl: m.avatarUrl })),
+    members: memberList,
     sessions: sessionList,
     settlements: settlementList,
     photos: photoList,
@@ -255,7 +322,7 @@ export async function getBoardByShareToken(
     .select()
     .from(boards)
     .where(eq(boards.shareToken, token));
-  if (!board) return null;
+  if (!board || !board.active) return null;
 
   const [memberRows, sessionList, settlementRows, photoList] = await Promise.all([
     db.select().from(members).where(eq(members.boardId, board.id)),
@@ -271,17 +338,29 @@ export async function getBoardByShareToken(
 
   return {
     board: { id: board.id, name: board.name, shareToken: board.shareToken },
-    members: memberRows.map((m) => ({ id: m.id, name: m.name, avatarUrl: m.avatarUrl })),
+    members: memberRows.map((m) => ({
+      id: m.id,
+      name: m.name,
+      avatarUrl: m.avatarUrl,
+      userId: null,
+      role: "member" as const,
+      linkedName: null
+    })),
     sessions: sessionList.map(({ note, ...rest }) => rest),
     photos: photoList,
     balances
   };
 }
 
-export async function getAllBoards(): Promise<BoardSummary[]> {
+export async function getAllBoards(excludeOwnerId?: string): Promise<BoardSummary[]> {
   const boardRows = await db
     .select({ id: boards.id, name: boards.name, shareToken: boards.shareToken })
     .from(boards)
+    .where(
+      excludeOwnerId
+        ? and(eq(boards.active, true), ne(boards.ownerId, excludeOwnerId))
+        : eq(boards.active, true)
+    )
     .orderBy(desc(boards.createdAt));
   if (boardRows.length === 0) return [];
 
@@ -308,5 +387,31 @@ export async function getAllBoards(): Promise<BoardSummary[]> {
     shareToken: b.shareToken,
     memberCount: memberCountByBoard.get(b.id) ?? 0,
     sessionCount: sessionCountByBoard.get(b.id) ?? 0
+  }));
+}
+
+export interface DraftBoard {
+  id: string;
+  name: string;
+  ownerLabel: string;
+}
+
+// Tat ca nhom da deactivate (draft) — chi super admin dung.
+export async function getDraftBoards(): Promise<DraftBoard[]> {
+  const rows = await db
+    .select({
+      id: boards.id,
+      name: boards.name,
+      ownerName: users.name,
+      ownerEmail: users.email
+    })
+    .from(boards)
+    .innerJoin(users, eq(boards.ownerId, users.id))
+    .where(eq(boards.active, false))
+    .orderBy(desc(boards.createdAt));
+  return rows.map((b) => ({
+    id: b.id,
+    name: b.name,
+    ownerLabel: b.ownerName || b.ownerEmail || "?"
   }));
 }

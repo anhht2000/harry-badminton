@@ -32,13 +32,19 @@ export const boards = pgTable("boards", {
   ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   shareToken: text("share_token").notNull().$defaultFn(() => crypto.randomUUID()),
+  // false = da deactivate (draft). Chi truong nhom + super admin thay; an khoi list cong khai.
+  active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow()
 });
 export const members = pgTable("members", {
   id: uuid(),
   boardId: text("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  avatarUrl: text("avatar_url")
+  avatarUrl: text("avatar_url"),
+  // Link toi account dang nhap (null = chua link). Dung cho phan quyen trong nhom.
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  // Vai tro: "secretary" (thu ky) | "member" (thanh vien). Truong nhom suy ra tu boards.ownerId.
+  role: text("role").notNull().default("member")
 });
 export const photos = pgTable("photos", {
   id: uuid(),

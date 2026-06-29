@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getBoardData } from "@/lib/queries";
 import { getCurrentUserId } from "@/lib/auth";
+import { roleFromMembers, canManageBooks } from "@/lib/access";
 import { SessionForm } from "@/components/session-form";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,8 @@ export default async function NewSessionPage({
 
   const data = await getBoardData(params.id);
   if (!data) notFound();
-  if (data.board.ownerId !== userId) redirect("/");
+  const role = roleFromMembers(data.board.ownerId, data.members, userId);
+  if (!role || !canManageBooks(role)) redirect(`/b/${params.id}`);
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">

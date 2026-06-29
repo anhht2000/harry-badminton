@@ -1,19 +1,32 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getBoardData } from "@/lib/queries";
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId, getCurrentUserEmail } from "@/lib/auth";
+import { roleFromMembers, canManageBooks, canManageMembers, isSuperAdmin } from "@/lib/access";
 import { splitSession } from "@/lib/domain/split";
 import { BoardTabs } from "@/components/board-tabs";
+import { BoardNameEditor } from "@/components/board-name-editor";
+import { BoardStatusControl } from "@/components/board-status-control";
 
 export const dynamic = "force-dynamic";
 
 export default async function BoardPage({ params }: { params: { id: string } }) {
   const userId = await getCurrentUserId();
   if (!userId) redirect("/");
+  const superAdmin = isSuperAdmin(await getCurrentUserEmail());
 
   const data = await getBoardData(params.id);
   if (!data) notFound();
-  if (data.board.ownerId !== userId) redirect("/");
+
+  const role = roleFromMembers(data.board.ownerId, data.members, userId);
+  if (!role && !superAdmin) redirect("/");
+  // Nhom draft (da deactivate): chi truong nhom + super admin xem duoc
+  if (!data.board.active && role !== "leader" && !superAdmin) redirect("/");
+
+  const effectiveRole = role ?? "member";
+  const manageBooks = canManageBooks(effectiveRole);
+  const manageMembers = canManageMembers(effectiveRole);
+  const canToggleActive = role === "leader" || superAdmin;
 
   const sessions = data.sessions
     .slice()
@@ -46,9 +59,14 @@ export default async function BoardPage({ params }: { params: { id: string } }) 
           Danh sách nhóm
         </Link>
         <p className="label-eyebrow">Nhóm</p>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-          {data.board.name}
-        </h1>
+        <BoardNameEditor boardId={data.board.id} name={data.board.name} canEdit={manageMembers} />
+        {(!data.board.active || canToggleActive) && (
+          <BoardStatusControl
+            boardId={data.board.id}
+            active={data.board.active}
+            canToggle={canToggleActive}
+          />
+        )}
       </header>
 
       <BoardTabs
@@ -59,6 +77,8 @@ export default async function BoardPage({ params }: { params: { id: string } }) 
         balances={data.balances}
         sessionDebts={data.sessionDebts}
         photos={data.photos}
+        canManageBooks={manageBooks}
+        canManageMembers={manageMembers}
       />
     </main>
   );

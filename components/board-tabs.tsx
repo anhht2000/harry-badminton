@@ -16,9 +16,11 @@ interface BoardTabsProps {
   balances: Record<string, number>;
   sessionDebts: Record<string, MemberSessionDebt[]>;
   photos: BoardPhoto[];
+  canManageBooks: boolean;
+  canManageMembers: boolean;
 }
 
-export function BoardTabs({ boardId, shareUrl, members, sessions, balances, sessionDebts, photos }: BoardTabsProps) {
+export function BoardTabs({ boardId, shareUrl, members, sessions, balances, sessionDebts, photos, canManageBooks, canManageMembers }: BoardTabsProps) {
   const [tab, setTab] = useState<Tab>("sessions");
   const [copied, setCopied] = useState(false);
 
@@ -39,14 +41,18 @@ export function BoardTabs({ boardId, shareUrl, members, sessions, balances, sess
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap gap-2">
-        <Link href={`/b/${boardId}/thanh-vien`} className={secondaryClass}>
-          <UsersIcon />
-          Thành viên
-        </Link>
-        <Link href={`/b/${boardId}/import`} className={secondaryClass}>
-          <SheetIcon />
-          Nhập Excel
-        </Link>
+        {canManageMembers && (
+          <Link href={`/b/${boardId}/thanh-vien`} className={secondaryClass}>
+            <UsersIcon />
+            Thành viên
+          </Link>
+        )}
+        {canManageBooks && (
+          <Link href={`/b/${boardId}/import`} className={secondaryClass}>
+            <SheetIcon />
+            Nhập Excel
+          </Link>
+        )}
         <button type="button" onClick={handleShare} className={secondaryClass}>
           {copied ? <CheckIcon /> : <ShareIcon />}
           {copied ? "Đã sao chép" : "Chia sẻ"}
@@ -100,16 +106,17 @@ export function BoardTabs({ boardId, shareUrl, members, sessions, balances, sess
       </div>
 
       {tab === "sessions" ? (
-        <SessionList boardId={boardId} sessions={sessions} />
+        <SessionList boardId={boardId} sessions={sessions} canManage={canManageBooks} />
       ) : tab === "balances" ? (
         <BalanceTable
           boardId={boardId}
           members={members}
           balances={balances}
           sessionDebts={sessionDebts}
+          canManage={canManageBooks}
         />
       ) : (
-        <AlbumGallery boardId={boardId} photos={photos} canDelete />
+        <AlbumGallery boardId={boardId} photos={photos} canDelete={canManageBooks} />
       )}
     </div>
   );

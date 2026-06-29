@@ -8,17 +8,23 @@ import {
   renameMember,
   removeMember,
   setMemberAvatar,
-  removeMemberAvatar
+  removeMemberAvatar,
+  linkMemberAccount,
+  unlinkMemberAccount,
+  setMemberRole
 } from "@/lib/actions/members";
+import { transferLeadership } from "@/lib/actions/boards";
 
 interface MemberManagerProps {
   boardId: string;
+  ownerId: string;
   members: BoardMember[];
   usedMemberIds: string[];
 }
 
 export function MemberManager({
   boardId,
+  ownerId,
   members,
   usedMemberIds
 }: MemberManagerProps) {
@@ -164,28 +170,31 @@ export function MemberManager({
                   </button>
                 </form>
               ) : (
-                <div className="flex items-center justify-between gap-3">
-                  <MemberAvatar member={member} usedInSession={used.has(member.id)} />
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(member)}
-                      disabled={isPending}
-                      aria-label={`Sửa ${member.name}`}
-                      className="grid h-9 w-9 place-items-center rounded-full border border-line bg-surface text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-accent hover:text-accent disabled:opacity-60"
-                    >
-                      <EditIcon />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(member)}
-                      disabled={isPending}
-                      aria-label={`Xoá ${member.name}`}
-                      className="grid h-9 w-9 place-items-center rounded-full border border-line bg-surface text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-danger hover:text-danger disabled:opacity-60"
-                    >
-                      <TrashIcon />
-                    </button>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <MemberAvatar member={member} usedInSession={used.has(member.id)} />
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(member)}
+                        disabled={isPending}
+                        aria-label={`Sửa ${member.name}`}
+                        className="grid h-9 w-9 place-items-center rounded-full border border-line bg-surface text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-accent hover:text-accent disabled:opacity-60"
+                      >
+                        <EditIcon />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(member)}
+                        disabled={isPending}
+                        aria-label={`Xoá ${member.name}`}
+                        className="grid h-9 w-9 place-items-center rounded-full border border-line bg-surface text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-danger hover:text-danger disabled:opacity-60"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
                   </div>
+                  <MemberRoleControls boardId={boardId} ownerId={ownerId} member={member} />
                 </div>
               )}
             </li>
@@ -193,6 +202,158 @@ export function MemberManager({
         </ul>
       )}
     </div>
+  );
+}
+
+function MemberRoleControls({
+  boardId,
+  ownerId,
+  member
+}: {
+  boardId: string;
+  ownerId: string;
+  member: BoardMember;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [accountId, setAccountId] = useState("");
+
+  const isLeader = !!member.userId && member.userId === ownerId;
+  const isLinked = !!member.userId;
+
+  function run(action: () => Promise<unknown>) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await action();
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Có lỗi xảy ra, thử lại sau");
+      }
+    });
+  }
+
+  function handleLink(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const id = accountId.trim();
+    if (!id) {
+      setError("Dán mã tài khoản của thành viên");
+      return;
+    }
+    run(async () => {
+      await linkMemberAccount(member.id, id);
+      setAccountId("");
+    });
+  }
+
+  function handleTransfer() {
+    if (
+      !window.confirm(
+        `Chuyển quyền trưởng nhóm cho ${member.name}? Bạn sẽ trở thành thành viên thường và mất quyền quản lý.`
+      )
+    )
+      return;
+    run(() => transferLeadership(boardId, member.id));
+  }
+
+  const badge = isLeader ? "Trưởng nhóm" : member.role === "secretary" ? "Thư ký" : "Thành viên";
+  const badgeClass = isLeader
+    ? "bg-accent text-on-accent"
+    : member.role === "secretary"
+      ? "bg-accent-soft text-accent"
+      : "bg-surface-2 text-muted";
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface-2 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badgeClass}`}>
+          {badge}
+        </span>
+        {isLinked && (
+          <span className="truncate text-xs text-muted">
+            {member.linkedName ? `Liên kết: ${member.linkedName}` : "Đã liên kết tài khoản"}
+          </span>
+        )}
+      </div>
+
+      {!isLinked ? (
+        <form onSubmit={handleLink} className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            placeholder="Dán mã tài khoản để liên kết"
+            aria-label={`Mã tài khoản liên kết cho ${member.name}`}
+            disabled={pending}
+            className="h-9 min-w-0 flex-1 rounded-full border border-line bg-surface px-3 font-mono text-xs text-ink outline-none transition-colors duration-[var(--dur-fast)] ease-soft placeholder:font-sans placeholder:text-muted focus:border-accent disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={pending}
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-accent px-4 text-xs font-medium text-on-accent shadow-card transition-[transform,background-color] duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 hover:bg-accent-2 disabled:translate-y-0 disabled:opacity-60"
+          >
+            <LinkIcon />
+            Liên kết
+          </button>
+        </form>
+      ) : isLeader ? null : (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs text-muted">
+            Vai trò
+            <select
+              value={member.role}
+              disabled={pending}
+              onChange={(e) => run(() => setMemberRole(member.id, e.target.value as "secretary" | "member"))}
+              className="h-9 rounded-full border border-line bg-surface px-3 text-xs text-ink outline-none transition-colors duration-[var(--dur-fast)] ease-soft focus:border-accent disabled:opacity-60"
+            >
+              <option value="member">Thành viên</option>
+              <option value="secretary">Thư ký</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={handleTransfer}
+            disabled={pending}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-xs font-medium text-ink transition-colors duration-[var(--dur-fast)] ease-soft hover:border-accent hover:text-accent disabled:opacity-60"
+          >
+            <CrownIcon />
+            Đặt làm trưởng nhóm
+          </button>
+          <button
+            type="button"
+            onClick={() => run(() => unlinkMemberAccount(member.id))}
+            disabled={pending}
+            className="inline-flex h-9 items-center rounded-full border border-line bg-surface px-3 text-xs font-medium text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-danger hover:text-danger disabled:opacity-60"
+          >
+            Gỡ liên kết
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <p role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5" />
+      <path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5" />
+    </svg>
+  );
+}
+
+function CrownIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 7l4 4 5-7 5 7 4-4-2 13H5L3 7Z" />
+    </svg>
   );
 }
 
