@@ -1,7 +1,8 @@
 // Cau hinh SEO dung chung cho metadata, sitemap, robots, OG image.
 // Doi domain qua env NEXT_PUBLIC_SITE_URL khi deploy; fallback la domain production.
+// Dung || (khong dung ??) de fallback ca khi env la chuoi rong "" tren Vercel.
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://badminton.harry-dev.click"
+  process.env.NEXT_PUBLIC_SITE_URL || "https://badminton.harry-dev.click"
 ).replace(/\/$/, "");
 
 export const SITE_NAME = "Chia Cầu";
