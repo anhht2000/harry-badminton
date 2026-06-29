@@ -128,16 +128,20 @@
     outline-offset: 2px;
   }
 
-  /* Nhan nho dang label: in hoa, gian chu */
+  /* Nhan nho dang chip: nen amber + chu dam toi -> tuong phan cao, noi bat */
   .label-eyebrow {
+    display: inline-block;
+    width: fit-content;
     text-transform: uppercase;
     letter-spacing: var(--tracking-label);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 700;
-    color: var(--accent-2);
+    line-height: 1.5;
+    color: var(--on-accent);
+    background-color: var(--accent);
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
   }
-
-  .dark .label-eyebrow { color: var(--accent); }
 
   .num { font-variant-numeric: tabular-nums; }   /* cot tien thang hang */
 

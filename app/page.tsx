@@ -72,7 +72,7 @@ export default async function Home() {
           aria-label="Bản nháp"
         >
           <header className="flex flex-col gap-1.5">
-            <p className="label-eyebrow text-danger">Super admin</p>
+            <p className="label-eyebrow">Super admin</p>
             <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
               Tất cả nhóm
             </h2>
