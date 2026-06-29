@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getBoardByShareToken } from "@/lib/queries";
+import { notFound, redirect } from "next/navigation";
+import { getBoardByShareToken, getBoardIdByShareToken } from "@/lib/queries";
+import { getCurrentUserEmail } from "@/lib/auth";
+import { isSuperAdmin } from "@/lib/access";
 import { formatVnd } from "@/lib/domain/money";
 import { splitSession } from "@/lib/domain/split";
 import { AlbumGallery } from "@/components/album-gallery";
@@ -23,6 +25,14 @@ export default async function SharePage({
 }: {
   params: { token: string };
 }) {
+  // Super admin: full quyen moi noi -> dua thang sang trang quan ly thay vi read-only
+  // (ke ca nhom draft, nen check truoc getBoardByShareToken vốn an draft).
+  if (isSuperAdmin(await getCurrentUserEmail())) {
+    const id = await getBoardIdByShareToken(params.token);
+    if (id) redirect(`/b/${id}`);
+    notFound();
+  }
+
   const data = await getBoardByShareToken(params.token);
   if (!data) notFound();
 

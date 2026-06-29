@@ -315,6 +315,15 @@ export async function getBoardData(boardId: string): Promise<BoardData | null> {
   };
 }
 
+// Lay board id tu share token, ke ca nhom draft — dung cho super admin redirect.
+export async function getBoardIdByShareToken(token: string): Promise<string | null> {
+  const [b] = await db
+    .select({ id: boards.id })
+    .from(boards)
+    .where(eq(boards.shareToken, token));
+  return b?.id ?? null;
+}
+
 export async function getBoardByShareToken(
   token: string
 ): Promise<PublicBoardData | null> {
@@ -390,28 +399,52 @@ export async function getAllBoards(excludeOwnerId?: string): Promise<BoardSummar
   }));
 }
 
-export interface DraftBoard {
+export interface AdminBoard {
   id: string;
   name: string;
   ownerLabel: string;
+  active: boolean;
+  memberCount: number;
+  sessionCount: number;
 }
 
-// Tat ca nhom da deactivate (draft) — chi super admin dung.
-export async function getDraftBoards(): Promise<DraftBoard[]> {
-  const rows = await db
+// Tat ca nhom toan he thong (active + draft) — chi super admin dung.
+export async function getAllBoardsAdmin(): Promise<AdminBoard[]> {
+  const boardRows = await db
     .select({
       id: boards.id,
       name: boards.name,
+      active: boards.active,
       ownerName: users.name,
       ownerEmail: users.email
     })
     .from(boards)
     .innerJoin(users, eq(boards.ownerId, users.id))
-    .where(eq(boards.active, false))
-    .orderBy(desc(boards.createdAt));
-  return rows.map((b) => ({
+    .orderBy(desc(boards.active), desc(boards.createdAt));
+  if (boardRows.length === 0) return [];
+
+  const boardIds = boardRows.map((b) => b.id);
+  const [memberCounts, sessionCounts] = await Promise.all([
+    db
+      .select({ boardId: members.boardId, value: count() })
+      .from(members)
+      .where(inArray(members.boardId, boardIds))
+      .groupBy(members.boardId),
+    db
+      .select({ boardId: gameSessions.boardId, value: count() })
+      .from(gameSessions)
+      .where(inArray(gameSessions.boardId, boardIds))
+      .groupBy(gameSessions.boardId)
+  ]);
+  const memberCountByBoard = new Map(memberCounts.map((r) => [r.boardId, r.value]));
+  const sessionCountByBoard = new Map(sessionCounts.map((r) => [r.boardId, r.value]));
+
+  return boardRows.map((b) => ({
     id: b.id,
     name: b.name,
-    ownerLabel: b.ownerName || b.ownerEmail || "?"
+    ownerLabel: b.ownerName || b.ownerEmail || "?",
+    active: b.active,
+    memberCount: memberCountByBoard.get(b.id) ?? 0,
+    sessionCount: sessionCountByBoard.get(b.id) ?? 0
   }));
 }

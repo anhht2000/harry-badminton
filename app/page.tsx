@@ -2,7 +2,7 @@ import { getCurrentUserId, getCurrentUserEmail } from "@/lib/auth";
 import { isSuperAdmin } from "@/lib/access";
 import { BoardList } from "@/components/board-list";
 import { PublicBoardList } from "@/components/public-board-list";
-import { DraftBoardsAdmin } from "@/components/draft-boards-admin";
+import { AdminBoardsList } from "@/components/admin-boards-list";
 import { CreateBoardForm } from "@/components/create-board-form";
 
 export const dynamic = "force-dynamic";
@@ -74,14 +74,14 @@ export default async function Home() {
           <header className="flex flex-col gap-1.5">
             <p className="label-eyebrow text-danger">Super admin</p>
             <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-              Nhóm bản nháp
+              Tất cả nhóm
             </h2>
             <p className="max-w-prose text-muted">
-              Các nhóm đã bị deactivate (ẩn). Chỉ super admin thấy mục này — mở để xem
-              hoặc khôi phục.
+              Toàn bộ nhóm trong hệ thống (kể cả nhóm nháp). Chỉ super admin thấy mục
+              này — mở để chỉnh sửa, ẩn hoặc khôi phục bất kỳ nhóm nào.
             </p>
           </header>
-          <DraftBoardsAdmin />
+          <AdminBoardsList />
         </section>
       )}
     </main>

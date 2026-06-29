@@ -1,19 +1,17 @@
 import Link from "next/link";
-import { getDraftBoards } from "@/lib/queries";
+import { getAllBoardsAdmin } from "@/lib/queries";
 import { BoardStatusControl } from "@/components/board-status-control";
 
-export async function DraftBoardsAdmin() {
-  const drafts = await getDraftBoards();
+export async function AdminBoardsList() {
+  const all = await getAllBoardsAdmin();
 
-  if (drafts.length === 0) {
-    return (
-      <p className="text-sm text-muted">Hiện không có nhóm nào ở trạng thái nháp.</p>
-    );
+  if (all.length === 0) {
+    return <p className="text-sm text-muted">Chưa có nhóm nào trong hệ thống.</p>;
   }
 
   return (
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {drafts.map((b) => (
+      {all.map((b) => (
         <li
           key={b.id}
           className="flex h-full flex-col gap-3 rounded-lg border border-line bg-surface p-5 shadow-card"
@@ -24,8 +22,13 @@ export async function DraftBoardsAdmin() {
           >
             {b.name}
           </Link>
+          <p className="num text-xs text-muted">
+            {b.memberCount} thành viên · {b.sessionCount} buổi
+          </p>
           <p className="text-xs text-muted">Trưởng nhóm: {b.ownerLabel}</p>
-          <BoardStatusControl boardId={b.id} active={false} canToggle />
+          <div className="mt-auto pt-1">
+            <BoardStatusControl boardId={b.id} active={b.active} canToggle />
+          </div>
         </li>
       ))}
     </ul>
