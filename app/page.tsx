@@ -46,11 +46,12 @@ function HomeHero() {
         <div className="flex max-w-2xl flex-col gap-5">
           <p className="label-eyebrow">Chia tiền cầu lông</p>
           <h1 className="font-display text-4xl font-bold leading-[1.08] tracking-tight text-ink sm:text-5xl">
-            Chia đều chi phí mỗi buổi tập, theo dõi nợ cả nhóm
+            Chia đều tiền cầu lông mỗi buổi, theo dõi nợ cả nhóm
           </h1>
           <p className="max-w-prose text-lg text-muted">
-            Mỗi buổi cầu, tính chi phí sân và đồ dùng rồi chia đều cho người có
-            mặt. Ai trả trước, ai còn nợ — tất cả rõ ràng trong một bảng.
+            Mỗi buổi cầu lông, tính tiền sân và tiền cầu rồi chia đều cho người
+            có mặt. Ai trả trước, ai còn nợ — tất cả rõ ràng trong một bảng,
+            miễn phí và không cần cài đặt.
           </p>
           <p className="text-sm text-muted">
             Đăng nhập với Google ở góc trên để tạo nhóm đầu tiên của bạn.
@@ -107,7 +108,76 @@ function HomeHero() {
           <PublicBoardList />
         </div>
       </section>
+
+      <FaqSection />
     </main>
+  );
+}
+
+// Cau hoi thuong gap: vua tot cho nguoi dung, vua sinh rich result FAQ tren Google.
+const FAQ_ITEMS = [
+  {
+    q: "Chia Cầu là gì?",
+    a: "Chia Cầu là công cụ web miễn phí giúp chia tiền cầu lông cho cả nhóm: tính tiền sân và tiền cầu mỗi buổi rồi chia đều cho người có mặt, đồng thời theo dõi ai trả trước, ai còn nợ."
+  },
+  {
+    q: "Cách chia tiền cầu lông cho cả nhóm như thế nào?",
+    a: "Bạn nhập tổng chi phí mỗi buổi (tiền sân, tiền cầu) và chọn những người có mặt. Chia Cầu tự chia đều cho từng người, cộng dồn qua nhiều buổi để biết chính xác số nợ của cả nhóm."
+  },
+  {
+    q: "App chia tiền cầu lông này có miễn phí không?",
+    a: "Có. Chia Cầu hoàn toàn miễn phí. Bạn chỉ cần đăng nhập bằng Google để tạo và quản lý nhóm của mình."
+  },
+  {
+    q: "Có cần cài đặt ứng dụng không?",
+    a: "Không. Chia Cầu chạy trực tiếp trên trình duyệt điện thoại hoặc máy tính, không cần tải hay cài đặt bất kỳ ứng dụng nào."
+  },
+  {
+    q: "Làm sao chia sẻ bảng chi phí cho cả nhóm?",
+    a: "Mỗi nhóm có một đường dẫn công khai. Bạn chỉ cần gửi link đó để cả nhóm cùng xem bảng số dư mà không cần đăng nhập."
+  }
+];
+
+const faqStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQ_ITEMS.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: { "@type": "Answer", text: item.a }
+  }))
+};
+
+function FaqSection() {
+  return (
+    <section
+      className="flex flex-col gap-5 rounded-lg border border-line bg-surface p-6 shadow-card sm:p-8"
+      aria-label="Câu hỏi thường gặp"
+    >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
+      />
+      <header className="flex flex-col gap-1.5">
+        <p className="label-eyebrow">Câu hỏi thường gặp</p>
+        <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+          Chia tiền cầu lông — những điều bạn cần biết
+        </h2>
+      </header>
+      <div className="flex flex-col divide-y divide-line">
+        {FAQ_ITEMS.map((item) => (
+          <details key={item.q} className="group py-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-ink">
+              {item.q}
+              <span className="text-accent transition-transform group-open:rotate-45" aria-hidden="true">
+                +
+              </span>
+            </summary>
+            <p className="mt-3 text-muted">{item.a}</p>
+          </details>
+        ))}
+      </div>
+    </section>
   );
 }
 

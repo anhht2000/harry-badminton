@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getBoardByShareToken } from "@/lib/queries";
 import { formatVnd } from "@/lib/domain/money";
@@ -5,6 +6,11 @@ import { splitSession } from "@/lib/domain/split";
 import { AlbumGallery } from "@/components/album-gallery";
 
 export const dynamic = "force-dynamic";
+
+// Trang chia se theo token rieng tu -> khong cho Google index.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false }
+};
 
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split("-");
