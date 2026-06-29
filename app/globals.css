@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f4f7f6; --surface: #ffffff; --fg: #0f1f1c; --fg-muted: #5b6b67;
+  --accent: #0d9488;            /* teal */
+  --accent-2: #0b7d73;
+  --money: #ea580c;             /* cam cho so tien */
+  --on-accent: #ffffff;
+  --border: #e2e8e6;
+  --ok: #15803d; --danger: #b91c1c;
+  --shadow-card: 0 10px 30px -18px rgba(13, 148, 136, 0.45);
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 40px;
+  --radius-sm: 10px; --radius-md: 16px; --radius-lg: 24px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1); --dur-fast: 160ms; --dur-base: 280ms;
+}
+.dark {
+  --bg: #0c1413; --surface: #131e1c; --fg: #e6f0ee; --fg-muted: #9bb0ab;
+  --accent: #2dd4bf; --accent-2: #5eead4; --money: #fb923c; --on-accent: #06201d;
+  --border: #243531; --ok: #4ade80; --danger: #f87171;
+  --shadow-card: 0 10px 30px -18px rgba(0,0,0,0.6);
+}
+@layer base {
+  * { border-color: var(--border); }
+  body {
+    min-height: 100vh; background: var(--bg); color: var(--fg);
+    font-family: var(--font-inter), system-ui, sans-serif; font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-weight: 700; line-height: 1.2; color: var(--fg); }
+  a { color: var(--accent-2); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .num { font-variant-numeric: tabular-nums; }      /* cot tien thang hang */
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .001ms !important; animation-duration: .001ms !important; }
+}
