@@ -3,9 +3,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { SessionList, type SessionRow } from "@/components/session-list";
 import { BalanceTable } from "@/components/balance-table";
-import type { BoardMember } from "@/lib/queries";
+import { AlbumGallery } from "@/components/album-gallery";
+import type { BoardMember, MemberSessionDebt, BoardPhoto } from "@/lib/queries";
 
-type Tab = "sessions" | "balances";
+type Tab = "sessions" | "balances" | "photos";
 
 interface BoardTabsProps {
   boardId: string;
@@ -13,9 +14,11 @@ interface BoardTabsProps {
   members: BoardMember[];
   sessions: SessionRow[];
   balances: Record<string, number>;
+  sessionDebts: Record<string, MemberSessionDebt[]>;
+  photos: BoardPhoto[];
 }
 
-export function BoardTabs({ boardId, shareUrl, members, sessions, balances }: BoardTabsProps) {
+export function BoardTabs({ boardId, shareUrl, members, sessions, balances, sessionDebts, photos }: BoardTabsProps) {
   const [tab, setTab] = useState<Tab>("sessions");
   const [copied, setCopied] = useState(false);
 
@@ -81,12 +84,32 @@ export function BoardTabs({ boardId, shareUrl, members, sessions, balances }: Bo
         >
           Số dư
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "photos"}
+          onClick={() => setTab("photos")}
+          className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-soft ${
+            tab === "photos"
+              ? "bg-accent text-on-accent shadow-card"
+              : "text-accent-2 hover:text-accent"
+          }`}
+        >
+          Ảnh
+        </button>
       </div>
 
       {tab === "sessions" ? (
         <SessionList boardId={boardId} sessions={sessions} />
+      ) : tab === "balances" ? (
+        <BalanceTable
+          boardId={boardId}
+          members={members}
+          balances={balances}
+          sessionDebts={sessionDebts}
+        />
       ) : (
-        <BalanceTable boardId={boardId} members={members} balances={balances} />
+        <AlbumGallery boardId={boardId} photos={photos} canDelete />
       )}
     </div>
   );

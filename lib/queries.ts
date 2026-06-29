@@ -10,7 +10,7 @@ import {
   settlements,
   photos
 } from "@/lib/db/schema";
-import { computeBalances, type SessionInput } from "@/lib/domain/split";
+import { computeBalances, splitSession, type SessionInput } from "@/lib/domain/split";
 
 export interface BoardSessionExpense {
   id: string;
@@ -48,6 +48,12 @@ export interface BoardSettlement {
   date: string;
   note: string | null;
 }
+export interface MemberSessionDebt {
+  sessionId: string;
+  date: string;
+  amount: number;
+  paid: boolean;
+}
 export interface BoardData {
   board: { id: string; name: string; shareToken: string; ownerId: string };
   members: BoardMember[];
@@ -55,6 +61,7 @@ export interface BoardData {
   settlements: BoardSettlement[];
   photos: BoardPhoto[];
   balances: Record<string, number>;
+  sessionDebts: Record<string, MemberSessionDebt[]>;
 }
 export interface PublicBoardData {
   board: { id: string; name: string; shareToken: string };
@@ -156,6 +163,25 @@ function toSessionInputs(sessions: BoardSession[]): SessionInput[] {
   }));
 }
 
+export interface SessionNet {
+  sessionId: string;
+  date: string;
+  nets: Record<string, number>;
+}
+
+export async function loadBoardSessionNets(boardId: string): Promise<SessionNet[]> {
+  const sessions = await loadBoardSessions(boardId);
+  return sessions.map((s) => ({
+    sessionId: s.id,
+    date: s.date,
+    nets: splitSession({
+      expenses: s.expenses.map((e) => ({ amount: e.amount })),
+      attendeeIds: s.attendeeIds,
+      payments: s.payments.map((p) => ({ memberId: p.memberId, amount: p.amount }))
+    }).net
+  }));
+}
+
 export async function getBoardData(boardId: string): Promise<BoardData | null> {
   const [board] = await db.select().from(boards).where(eq(boards.id, boardId));
   if (!board) return null;
@@ -180,6 +206,32 @@ export async function getBoardData(boardId: string): Promise<BoardData | null> {
     settlementList.map((s) => ({ memberId: s.memberId, amount: s.amount }))
   );
 
+  const paidSet = new Set(
+    settlementRows
+      .filter((s) => s.sessionId)
+      .map((s) => `${s.memberId}:${s.sessionId}`)
+  );
+  const sessionDebts: Record<string, MemberSessionDebt[]> = {};
+  for (const s of sessionList) {
+    const { net } = splitSession({
+      expenses: s.expenses.map((e) => ({ amount: e.amount })),
+      attendeeIds: s.attendeeIds,
+      payments: s.payments.map((p) => ({ memberId: p.memberId, amount: p.amount }))
+    });
+    for (const [memberId, value] of Object.entries(net)) {
+      if (value <= 0) continue;
+      (sessionDebts[memberId] ??= []).push({
+        sessionId: s.id,
+        date: s.date,
+        amount: value,
+        paid: paidSet.has(`${memberId}:${s.id}`)
+      });
+    }
+  }
+  for (const list of Object.values(sessionDebts)) {
+    list.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
   return {
     board: {
       id: board.id,
@@ -191,7 +243,8 @@ export async function getBoardData(boardId: string): Promise<BoardData | null> {
     sessions: sessionList,
     settlements: settlementList,
     photos: photoList,
-    balances
+    balances,
+    sessionDebts
   };
 }
 

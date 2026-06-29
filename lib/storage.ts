@@ -31,7 +31,7 @@ function getClient(): S3Client {
 
 function publicUrl(key: string): string {
   const base =
-    process.env.S3_PUBLIC_BASE_URL ??
+    process.env.S3_PUBLIC_BASE_URL ||
     `https://${requireEnv("S3_BUCKET")}.s3.${requireEnv("AWS_REGION")}.amazonaws.com`;
   return `${base.replace(/\/$/, "")}/${key}`;
 }

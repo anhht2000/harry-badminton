@@ -75,6 +75,7 @@ export const settlements = pgTable("settlements", {
   id: uuid(),
   boardId: text("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
   memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  sessionId: text("session_id").references(() => gameSessions.id, { onDelete: "cascade" }),
   amount: integer("amount").notNull(),
   date: text("date").notNull(),
   note: text("note")

@@ -80,18 +80,32 @@ function HomeHero() {
         />
       </section>
 
-      <section className="flex flex-col gap-5" aria-label="Tất cả nhóm">
-        <header className="flex flex-col gap-1.5">
-          <p className="label-eyebrow">Cộng đồng</p>
+      <section
+        className="relative overflow-hidden rounded-lg border border-accent bg-accent-soft p-6 shadow-lg sm:p-8"
+        aria-label="Tất cả nhóm"
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-accent opacity-20 blur-3xl"
+        />
+        <header className="relative flex flex-col gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-accent text-on-accent shadow-card">
+              <CommunityIcon />
+            </span>
+            <p className="label-eyebrow">Cộng đồng</p>
+          </div>
           <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
             Tất cả nhóm
           </h2>
-          <p className="text-muted">
+          <p className="max-w-prose text-muted">
             Xem bảng số dư công khai của các nhóm. Đăng nhập để tạo và quản lý
             nhóm của riêng bạn.
           </p>
         </header>
-        <PublicBoardList />
+        <div className="relative mt-6">
+          <PublicBoardList />
+        </div>
       </section>
     </main>
   );
@@ -114,6 +128,16 @@ function FeatureCard({
       <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
       <p className="text-sm text-muted">{desc}</p>
     </div>
+  );
+}
+
+function CommunityIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 19v-1.5a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3V19" />
+      <circle cx="9.5" cy="8" r="3" />
+      <path d="M21 19v-1.5a3 3 0 0 0-2.25-2.9M16 5.1a3 3 0 0 1 0 5.8" />
+    </svg>
   );
 }
 
