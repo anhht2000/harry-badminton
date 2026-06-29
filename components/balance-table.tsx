@@ -22,9 +22,17 @@ export function BalanceTable({ boardId, members, balances }: BalanceTableProps) 
 
   if (members.length === 0) {
     return (
-      <p className="rounded-md border border-line bg-surface px-4 py-8 text-center text-muted">
-        Chưa có thành viên nào.
-      </p>
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line bg-surface px-6 py-12 text-center">
+        <span className="grid h-12 w-12 place-items-center rounded-full bg-accent-soft text-accent">
+          <UsersIcon />
+        </span>
+        <h3 className="font-display text-base font-semibold text-ink">
+          Chưa có thành viên nào
+        </h3>
+        <p className="max-w-prose text-sm text-muted">
+          Thêm thành viên vào nhóm để theo dõi số dư nợ của mỗi người.
+        </p>
+      </div>
     );
   }
 
@@ -33,9 +41,9 @@ export function BalanceTable({ boardId, members, balances }: BalanceTableProps) 
     .sort((a, b) => b.balance - a.balance);
 
   return (
-    <section>
-      <h2 className="mb-4 text-base">Số dư</h2>
-      <ul className="flex flex-col gap-2">
+    <section className="flex flex-col gap-4">
+      <h2 className="font-display text-lg font-semibold text-ink">Số dư</h2>
+      <ul className="flex flex-col gap-3">
         {rows.map(({ member, balance }) => {
           const owes = balance > 0;
           const receives = balance < 0;
@@ -44,18 +52,22 @@ export function BalanceTable({ boardId, members, balances }: BalanceTableProps) 
           return (
             <li
               key={member.id}
-              className="rounded-md border border-line bg-surface px-4 py-3 shadow-card"
+              className="rounded-lg border border-line bg-surface p-4 shadow-card"
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="font-medium text-ink">{member.name}</span>
-                <span className={`num font-semibold ${color}`}>
-                  {formatVnd(Math.abs(balance))}
-                  <span className="ml-1 text-xs font-normal">{label}</span>
+                <span className="font-display text-base font-semibold text-ink">
+                  {member.name}
+                </span>
+                <span className="flex flex-col items-end gap-0.5 text-right">
+                  <span className={`num text-lg font-bold ${color}`}>
+                    {formatVnd(Math.abs(balance))}
+                  </span>
+                  <span className={`text-xs font-medium ${color}`}>{label}</span>
                 </span>
               </div>
 
               {owes && (
-                <div className="mt-2">
+                <div className="mt-3">
                   {openMemberId === member.id ? (
                     <SettlementForm
                       boardId={boardId}
@@ -67,8 +79,9 @@ export function BalanceTable({ boardId, members, balances }: BalanceTableProps) 
                     <button
                       type="button"
                       onClick={() => setOpenMemberId(member.id)}
-                      className="rounded-md border border-line px-3 py-1.5 text-sm text-ink"
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink transition-[border-color,color] duration-[var(--dur-fast)] ease-soft hover:border-accent hover:text-accent"
                     >
+                      <CheckIcon />
                       Đánh dấu đã trả
                     </button>
                   )}
@@ -79,6 +92,24 @@ export function BalanceTable({ boardId, members, balances }: BalanceTableProps) 
         })}
       </ul>
     </section>
+  );
+}
+
+function UsersIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 19v-1.5a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3V19" />
+      <circle cx="9.5" cy="8" r="3" />
+      <path d="M21 19v-1.5a3 3 0 0 0-2.25-2.9M16 5.1a3 3 0 0 1 0 5.8" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
   );
 }
 
@@ -116,33 +147,37 @@ function SettlementForm({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-line bg-bg p-3">
-      <label className="flex flex-col gap-1 text-sm text-muted">
+    <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface-2 p-4">
+      <label className="flex flex-col gap-1.5 text-sm font-medium text-muted">
         Số tiền đã trả
         <input
           type="number"
           inputMode="numeric"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="num rounded-sm border border-line bg-surface px-3 py-2 text-ink"
+          className="num h-11 rounded-xl border border-line bg-surface px-3 text-ink outline-none transition-colors duration-[var(--dur-fast)] ease-soft focus:border-accent"
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm text-muted">
+      <label className="flex flex-col gap-1.5 text-sm font-medium text-muted">
         Ngày trả
         <input
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="rounded-sm border border-line bg-surface px-3 py-2 text-ink"
+          className="h-11 rounded-xl border border-line bg-surface px-3 text-ink outline-none transition-colors duration-[var(--dur-fast)] ease-soft focus:border-accent"
         />
       </label>
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
       <div className="flex gap-2">
         <button
           type="button"
           onClick={handleSubmit}
           disabled={pending}
-          className="rounded-md bg-accent px-3 py-1.5 text-sm text-on-accent disabled:opacity-60"
+          className="inline-flex h-10 items-center justify-center rounded-full bg-accent px-5 text-sm font-medium text-on-accent shadow-card transition-[transform,background-color] duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 hover:bg-accent-2 disabled:translate-y-0 disabled:opacity-60"
         >
           {pending ? "Đang lưu…" : "Lưu"}
         </button>
@@ -150,7 +185,7 @@ function SettlementForm({
           type="button"
           onClick={onClose}
           disabled={pending}
-          className="rounded-md border border-line px-3 py-1.5 text-sm text-ink"
+          className="inline-flex h-10 items-center justify-center rounded-full border border-line bg-surface px-5 text-sm font-medium text-ink transition-[border-color,color] duration-[var(--dur-fast)] ease-soft hover:border-accent hover:text-accent disabled:opacity-60"
         >
           Huỷ
         </button>

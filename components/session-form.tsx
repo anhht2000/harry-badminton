@@ -211,11 +211,17 @@ export function SessionForm({
     });
   }
 
+  const fieldClass =
+    "h-11 rounded-xl border border-line bg-surface px-3 text-ink outline-none transition-colors duration-[var(--dur-fast)] ease-soft placeholder:text-muted focus:border-accent disabled:opacity-60";
+  const removeBtnClass =
+    "grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line bg-surface text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-danger hover:text-danger";
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <section className="flex flex-col gap-2">
-        <label htmlFor="session-date" className="text-sm font-semibold">
-          Ngày
+      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-5 shadow-card">
+        <p className="label-eyebrow">Ngày</p>
+        <label htmlFor="session-date" className="sr-only">
+          Ngày diễn ra buổi
         </label>
         <input
           id="session-date"
@@ -223,17 +229,17 @@ export function SessionForm({
           value={date}
           onChange={(e) => setDate(e.target.value)}
           disabled={isPending}
-          className="rounded-md border border-line bg-surface px-3 py-2 text-ink disabled:opacity-60"
+          className={fieldClass}
         />
       </section>
 
-      <section className="flex flex-col gap-2">
-        <span className="text-sm font-semibold">
-          Người có mặt
-          <span className="ml-2 font-normal text-muted">
+      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-5 shadow-card">
+        <div className="flex items-center justify-between gap-3">
+          <p className="label-eyebrow">Người tham gia</p>
+          <span className="num text-sm font-medium text-muted">
             {attendeeIds.size}/{members.length}
           </span>
-        </span>
+        </div>
         {members.length === 0 ? (
           <p className="text-sm text-muted">
             Chưa có thành viên nào trong nhóm.
@@ -248,12 +254,13 @@ export function SessionForm({
                   type="button"
                   aria-pressed={on}
                   onClick={() => toggleAttendee(m.id)}
-                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-[background-color,border-color,color] duration-[var(--dur-fast)] ease-soft ${
                     on
                       ? "border-accent bg-accent text-on-accent"
-                      : "border-line bg-surface text-muted"
+                      : "border-line bg-surface text-ink hover:border-accent hover:text-accent"
                   }`}
                 >
+                  {on && <CheckIcon />}
                   {m.name}
                 </button>
               );
@@ -262,10 +269,12 @@ export function SessionForm({
         )}
       </section>
 
-      <section className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold">Khoản chi</span>
-          <span className="num text-sm text-money">{formatVnd(expensesTotal)}</span>
+      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-5 shadow-card">
+        <div className="flex items-center justify-between gap-3">
+          <p className="label-eyebrow">Khoản chi</p>
+          <span className="num text-base font-bold text-money">
+            {formatVnd(expensesTotal)}
+          </span>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -274,9 +283,10 @@ export function SessionForm({
               key={p}
               type="button"
               onClick={() => addExpense(p)}
-              className="rounded-full border border-line bg-surface px-3 py-1.5 text-sm text-accent-2"
+              className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition-transform duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5"
             >
-              + {p}
+              <PlusIcon />
+              {p}
             </button>
           ))}
         </div>
@@ -291,7 +301,7 @@ export function SessionForm({
                 aria-label="Nội dung khoản chi"
                 onChange={(e) => updateExpense(row.key, { label: e.target.value })}
                 disabled={isPending}
-                className="min-w-0 flex-1 rounded-md border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted disabled:opacity-60"
+                className={`min-w-0 flex-1 ${fieldClass}`}
               />
               <input
                 type="text"
@@ -305,15 +315,15 @@ export function SessionForm({
                   })
                 }
                 disabled={isPending}
-                className="num w-32 rounded-md border border-line bg-surface px-3 py-2 text-right text-ink placeholder:text-muted disabled:opacity-60"
+                className={`num w-32 text-right ${fieldClass}`}
               />
               <button
                 type="button"
                 onClick={() => removeExpense(row.key)}
                 aria-label="Xóa khoản chi"
-                className="rounded-md border border-line bg-surface px-3 text-muted"
+                className={removeBtnClass}
               >
-                ×
+                <TrashIcon />
               </button>
             </li>
           ))}
@@ -322,20 +332,21 @@ export function SessionForm({
         <button
           type="button"
           onClick={() => addExpense()}
-          className="self-start text-sm text-accent-2"
+          className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-accent-2 transition-colors duration-[var(--dur-fast)] ease-soft hover:text-accent"
         >
-          + Thêm khoản chi
+          <PlusIcon />
+          Thêm khoản chi
         </button>
       </section>
 
-      <section className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold">Người ứng tiền</span>
+      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-5 shadow-card">
+        <div className="flex items-center justify-between gap-3">
+          <p className="label-eyebrow">Người ứng</p>
           <button
             type="button"
             onClick={fillFirstPayerWithTotal}
             disabled={expensesTotal === 0}
-            className="text-sm text-accent-2 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition-opacity duration-[var(--dur-fast)] ease-soft disabled:opacity-50"
           >
             Ứng toàn bộ
           </button>
@@ -351,7 +362,7 @@ export function SessionForm({
                   updatePayment(row.key, { memberId: e.target.value })
                 }
                 disabled={isPending || members.length === 0}
-                className="min-w-0 flex-1 rounded-md border border-line bg-surface px-3 py-2 text-ink disabled:opacity-60"
+                className={`min-w-0 flex-1 ${fieldClass}`}
               >
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -371,15 +382,15 @@ export function SessionForm({
                   })
                 }
                 disabled={isPending}
-                className="num w-32 rounded-md border border-line bg-surface px-3 py-2 text-right text-ink placeholder:text-muted disabled:opacity-60"
+                className={`num w-32 text-right ${fieldClass}`}
               />
               <button
                 type="button"
                 onClick={() => removePayment(row.key)}
                 aria-label="Xóa người ứng"
-                className="rounded-md border border-line bg-surface px-3 text-muted"
+                className={removeBtnClass}
               >
-                ×
+                <TrashIcon />
               </button>
             </li>
           ))}
@@ -389,14 +400,16 @@ export function SessionForm({
           type="button"
           onClick={addPayment}
           disabled={members.length === 0}
-          className="self-start text-sm text-accent-2 disabled:opacity-50"
+          className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-accent-2 transition-colors duration-[var(--dur-fast)] ease-soft hover:text-accent disabled:opacity-50"
         >
-          + Thêm người ứng
+          <PlusIcon />
+          Thêm người ứng
         </button>
       </section>
 
-      <section className="flex flex-col gap-2">
-        <label htmlFor="session-note" className="text-sm font-semibold">
+      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-5 shadow-card">
+        <p className="label-eyebrow">Ghi chú</p>
+        <label htmlFor="session-note" className="sr-only">
           Ghi chú
         </label>
         <input
@@ -406,23 +419,30 @@ export function SessionForm({
           placeholder="Tùy chọn"
           onChange={(e) => setNote(e.target.value)}
           disabled={isPending}
-          className="rounded-md border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted disabled:opacity-60"
+          className={fieldClass}
         />
       </section>
 
-      <div className="flex items-center justify-between rounded-md border border-line bg-surface px-4 py-3 shadow-card">
-        <span className="text-sm text-muted">Mỗi người</span>
-        <span className="num text-lg font-bold text-money">
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-hero p-5 shadow-card">
+        <span className="flex flex-col">
+          <span className="label-eyebrow">Mỗi người</span>
+          <span className="text-sm text-muted">{attendeeIds.size} người tham gia</span>
+        </span>
+        <span className="num text-3xl font-bold text-money">
           {formatVnd(split.perHead)}
         </span>
       </div>
 
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
 
       <button
         type="submit"
         disabled={isPending || isDeleting}
-        className="rounded-md bg-accent px-4 py-3 text-base font-semibold text-on-accent disabled:opacity-60"
+        className="inline-flex h-12 items-center justify-center rounded-full bg-accent px-5 text-base font-semibold text-on-accent shadow-card transition-[transform,background-color] duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 hover:bg-accent-2 disabled:translate-y-0 disabled:opacity-60"
       >
         {isPending ? "Đang lưu…" : isEdit ? "Lưu thay đổi" : "Lưu buổi"}
       </button>
@@ -432,11 +452,35 @@ export function SessionForm({
           type="button"
           onClick={handleDelete}
           disabled={isPending || isDeleting}
-          className="rounded-md border border-danger px-4 py-3 text-base font-semibold text-danger disabled:opacity-60"
+          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-danger px-5 text-sm font-medium text-danger transition-colors duration-[var(--dur-fast)] ease-soft hover:bg-danger hover:text-surface disabled:opacity-60"
         >
           {isDeleting ? "Đang xóa…" : "Xóa buổi"}
         </button>
       )}
     </form>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
+    </svg>
   );
 }

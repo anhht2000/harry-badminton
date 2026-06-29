@@ -36,12 +36,19 @@ export default async function BoardPage({ params }: { params: { id: string } }) 
   const shareUrl = `/s/${data.board.shareToken}`;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6">
-      <header className="mb-5">
-        <Link href="/" className="text-sm text-muted">
-          ← Danh sách
+    <main className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+      <header className="flex flex-col gap-2">
+        <Link
+          href="/"
+          className="inline-flex w-fit items-center gap-1.5 text-sm text-muted no-underline transition-colors duration-[var(--dur-fast)] ease-soft hover:text-accent-2"
+        >
+          <BackIcon />
+          Danh sách nhóm
         </Link>
-        <h1 className="mt-1 text-2xl">{data.board.name}</h1>
+        <p className="label-eyebrow">Nhóm</p>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+          {data.board.name}
+        </h1>
       </header>
 
       <BoardTabs
@@ -52,5 +59,23 @@ export default async function BoardPage({ params }: { params: { id: string } }) 
         balances={data.balances}
       />
     </main>
+  );
+}
+
+function BackIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M19 12H5M11 6l-6 6 6 6" />
+    </svg>
   );
 }

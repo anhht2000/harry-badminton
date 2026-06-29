@@ -30,38 +30,40 @@ export function BoardTabs({ boardId, shareUrl, members, sessions, balances }: Bo
     }
   }
 
+  const secondaryClass =
+    "inline-flex h-10 items-center justify-center gap-1.5 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink no-underline shadow-card transition-[transform,border-color,color] duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 hover:border-accent hover:text-accent";
+
   return (
-    <div>
-      <div className="mb-5 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={handleShare}
-          className="rounded-md bg-accent px-3 py-1.5 text-sm text-on-accent"
-        >
-          {copied ? "Đã sao chép" : "Chia sẻ"}
-        </button>
-        <Link
-          href={`/b/${boardId}/thanh-vien`}
-          className="rounded-md border border-line px-3 py-1.5 text-sm text-ink"
-        >
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap gap-2">
+        <Link href={`/b/${boardId}/thanh-vien`} className={secondaryClass}>
+          <UsersIcon />
           Thành viên
         </Link>
-        <Link
-          href={`/b/${boardId}/import`}
-          className="rounded-md border border-line px-3 py-1.5 text-sm text-ink"
-        >
-          Nhập từ Excel
+        <Link href={`/b/${boardId}/import`} className={secondaryClass}>
+          <SheetIcon />
+          Nhập Excel
         </Link>
+        <button type="button" onClick={handleShare} className={secondaryClass}>
+          {copied ? <CheckIcon /> : <ShareIcon />}
+          {copied ? "Đã sao chép" : "Chia sẻ"}
+        </button>
       </div>
 
-      <div role="tablist" className="mb-4 flex gap-1 rounded-md bg-surface p-1 shadow-card">
+      <div
+        role="tablist"
+        aria-label="Chế độ xem"
+        className="flex gap-1 rounded-full bg-accent-soft p-1"
+      >
         <button
           type="button"
           role="tab"
           aria-selected={tab === "sessions"}
           onClick={() => setTab("sessions")}
-          className={`flex-1 rounded-sm px-3 py-2 text-sm transition-colors ${
-            tab === "sessions" ? "bg-accent text-on-accent" : "text-muted"
+          className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-soft ${
+            tab === "sessions"
+              ? "bg-accent text-on-accent shadow-card"
+              : "text-accent-2 hover:text-accent"
           }`}
         >
           Buổi
@@ -71,8 +73,10 @@ export function BoardTabs({ boardId, shareUrl, members, sessions, balances }: Bo
           role="tab"
           aria-selected={tab === "balances"}
           onClick={() => setTab("balances")}
-          className={`flex-1 rounded-sm px-3 py-2 text-sm transition-colors ${
-            tab === "balances" ? "bg-accent text-on-accent" : "text-muted"
+          className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-soft ${
+            tab === "balances"
+              ? "bg-accent text-on-accent shadow-card"
+              : "text-accent-2 hover:text-accent"
           }`}
         >
           Số dư
@@ -85,5 +89,43 @@ export function BoardTabs({ boardId, shareUrl, members, sessions, balances }: Bo
         <BalanceTable boardId={boardId} members={members} balances={balances} />
       )}
     </div>
+  );
+}
+
+function UsersIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 19v-1.5a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3V19" />
+      <circle cx="9.5" cy="8" r="3" />
+      <path d="M21 19v-1.5a3 3 0 0 0-2.25-2.9M16 5.1a3 3 0 0 1 0 5.8" />
+    </svg>
+  );
+}
+
+function SheetIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M4 9h16M4 15h16M10 3v18" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="18" cy="5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="19" r="2.5" />
+      <path d="m8.2 10.8 7.6-4.6M8.2 13.2l7.6 4.6" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
   );
 }

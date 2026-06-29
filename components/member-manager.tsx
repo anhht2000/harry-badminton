@@ -82,9 +82,9 @@ export function MemberManager({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <form onSubmit={handleAdd} className="flex flex-col gap-2">
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
             value={newName}
@@ -92,33 +92,46 @@ export function MemberManager({
             placeholder="Tên thành viên mới"
             aria-label="Tên thành viên mới"
             disabled={isPending}
-            className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted disabled:opacity-60"
+            className="h-11 flex-1 rounded-full border border-line bg-surface px-4 text-ink shadow-card outline-none transition-colors duration-[var(--dur-fast)] ease-soft placeholder:text-muted focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
           />
           <button
             type="submit"
             disabled={isPending}
-            className="rounded-md bg-accent px-4 py-2 text-on-accent disabled:opacity-60"
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-accent px-5 font-medium text-on-accent shadow-card transition-[transform,background-color] duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 hover:bg-accent-2 disabled:translate-y-0 disabled:opacity-60"
           >
-            Thêm
+            <PlusIcon />
+            {isPending ? "Đang thêm…" : "Thêm"}
           </button>
         </div>
       </form>
 
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="px-1 text-sm text-danger">
+          {error}
+        </p>
+      )}
 
       {members.length === 0 ? (
-        <p className="rounded-md border border-line bg-surface px-4 py-6 text-center text-muted">
-          Chưa có thành viên nào.
-        </p>
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line bg-surface px-6 py-12 text-center">
+          <span className="grid h-12 w-12 place-items-center rounded-full bg-accent-soft text-accent">
+            <UsersIcon />
+          </span>
+          <h2 className="font-display text-lg font-semibold text-ink">
+            Chưa có thành viên nào
+          </h2>
+          <p className="max-w-prose text-sm text-muted">
+            Thêm thành viên ở trên để bắt đầu chia tiền cho các buổi tập.
+          </p>
+        </div>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2.5">
           {members.map((member) => (
             <li
               key={member.id}
-              className="rounded-md border border-line bg-surface px-3 py-2 shadow-card"
+              className="rounded-lg border border-line bg-surface px-3.5 py-3 shadow-card"
             >
               {editingId === member.id ? (
-                <form onSubmit={handleRename} className="flex gap-2">
+                <form onSubmit={handleRename} className="flex flex-wrap items-center gap-2">
                   <input
                     type="text"
                     value={editingName}
@@ -126,12 +139,12 @@ export function MemberManager({
                     aria-label={`Sửa tên ${member.name}`}
                     autoFocus
                     disabled={isPending}
-                    className="flex-1 rounded-md border border-line bg-surface px-3 py-1.5 text-ink disabled:opacity-60"
+                    className="h-10 min-w-0 flex-1 rounded-full border border-line bg-surface px-4 text-ink outline-none transition-colors duration-[var(--dur-fast)] ease-soft focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
                   />
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="rounded-md bg-accent px-3 py-1.5 text-on-accent disabled:opacity-60"
+                    className="inline-flex h-10 items-center justify-center rounded-full bg-accent px-4 text-sm font-medium text-on-accent shadow-card transition-[transform,background-color] duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 hover:bg-accent-2 disabled:translate-y-0 disabled:opacity-60"
                   >
                     Lưu
                   </button>
@@ -139,37 +152,49 @@ export function MemberManager({
                     type="button"
                     onClick={() => setEditingId(null)}
                     disabled={isPending}
-                    className="rounded-md border border-line px-3 py-1.5 text-ink disabled:opacity-60"
+                    className="inline-flex h-10 items-center justify-center rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink transition-colors duration-[var(--dur-fast)] ease-soft hover:border-accent hover:text-accent disabled:opacity-60"
                   >
                     Huỷ
                   </button>
                 </form>
               ) : (
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-ink">{member.name}</span>
-                    {used.has(member.id) && (
-                      <span className="rounded-sm border border-line px-1.5 py-0.5 text-xs text-muted">
-                        đã có trong buổi
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      aria-hidden="true"
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent-soft text-base font-semibold text-accent"
+                    >
+                      {initial(member.name)}
+                    </span>
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <span className="truncate font-medium text-ink">
+                        {member.name}
                       </span>
-                    )}
+                      {used.has(member.id) && (
+                        <span className="w-fit rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+                          đã có trong buổi
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 items-center gap-1">
                     <button
                       type="button"
                       onClick={() => startEdit(member)}
                       disabled={isPending}
-                      className="rounded-md border border-line px-3 py-1.5 text-sm text-ink disabled:opacity-60"
+                      aria-label={`Sửa ${member.name}`}
+                      className="grid h-9 w-9 place-items-center rounded-full border border-line bg-surface text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-accent hover:text-accent disabled:opacity-60"
                     >
-                      Sửa
+                      <EditIcon />
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRemove(member)}
                       disabled={isPending}
-                      className="rounded-md border border-line px-3 py-1.5 text-sm text-danger disabled:opacity-60"
+                      aria-label={`Xoá ${member.name}`}
+                      className="grid h-9 w-9 place-items-center rounded-full border border-line bg-surface text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-danger hover:text-danger disabled:opacity-60"
                     >
-                      Xoá
+                      <TrashIcon />
                     </button>
                   </div>
                 </div>
@@ -179,5 +204,44 @@ export function MemberManager({
         </ul>
       )}
     </div>
+  );
+}
+
+function initial(name: string): string {
+  return name.trim().charAt(0).toUpperCase() || "?";
+}
+
+function PlusIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+function UsersIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6M10 11v6M14 11v6" />
+    </svg>
   );
 }
