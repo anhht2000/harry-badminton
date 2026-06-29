@@ -2,7 +2,11 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createSession } from "@/lib/actions/sessions";
+import {
+  createSession,
+  updateSession,
+  deleteSession
+} from "@/lib/actions/sessions";
 import { splitSession } from "@/lib/domain/split";
 import { formatVnd } from "@/lib/domain/money";
 import type { BoardMember } from "@/lib/queries";
@@ -37,28 +41,54 @@ function toAmount(raw: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+export interface SessionFormInitial {
+  date: string;
+  note: string;
+  attendeeIds: string[];
+  expenses: { label: string; amount: number }[];
+  payments: { memberId: string; amount: number }[];
+}
+
 export function SessionForm({
   boardId,
-  members
+  members,
+  sessionId,
+  initial
 }: {
   boardId: string;
   members: BoardMember[];
+  sessionId?: string;
+  initial?: SessionFormInitial;
 }) {
   const router = useRouter();
+  const isEdit = Boolean(sessionId);
   const [isPending, startTransition] = useTransition();
+  const [isDeleting, startDelete] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [date, setDate] = useState(todayLocal);
-  const [note, setNote] = useState("");
-  const [attendeeIds, setAttendeeIds] = useState<Set<string>>(
-    () => new Set(members.map((m) => m.id))
+  const [date, setDate] = useState(() => initial?.date ?? todayLocal());
+  const [note, setNote] = useState(() => initial?.note ?? "");
+  const [attendeeIds, setAttendeeIds] = useState<Set<string>>(() =>
+    initial ? new Set(initial.attendeeIds) : new Set(members.map((m) => m.id))
   );
-  const [expenseRows, setExpenseRows] = useState<ExpenseRow[]>([
-    { key: nextKey(), label: "", amount: "" }
-  ]);
-  const [paymentRows, setPaymentRows] = useState<PaymentRow[]>(() => [
-    { key: nextKey(), memberId: members[0]?.id ?? "", amount: "" }
-  ]);
+  const [expenseRows, setExpenseRows] = useState<ExpenseRow[]>(() =>
+    initial && initial.expenses.length > 0
+      ? initial.expenses.map((e) => ({
+          key: nextKey(),
+          label: e.label,
+          amount: String(e.amount)
+        }))
+      : [{ key: nextKey(), label: "", amount: "" }]
+  );
+  const [paymentRows, setPaymentRows] = useState<PaymentRow[]>(() =>
+    initial && initial.payments.length > 0
+      ? initial.payments.map((p) => ({
+          key: nextKey(),
+          memberId: p.memberId,
+          amount: String(p.amount)
+        }))
+      : [{ key: nextKey(), memberId: members[0]?.id ?? "", amount: "" }]
+  );
 
   const expensesTotal = useMemo(
     () => expenseRows.reduce((s, e) => s + toAmount(e.amount), 0),
@@ -147,16 +177,36 @@ export function SessionForm({
     setError(null);
     startTransition(async () => {
       try {
-        await createSession(boardId, {
+        const payload = {
           date,
           note: note.trim() || undefined,
           attendeeIds: ids,
           expenses,
           payments
-        });
+        };
+        if (sessionId) {
+          await updateSession(sessionId, payload);
+        } else {
+          await createSession(boardId, payload);
+        }
         router.push(`/b/${boardId}`);
       } catch {
         setError("Không lưu được buổi, thử lại sau");
+      }
+    });
+  }
+
+  function handleDelete() {
+    if (!sessionId) return;
+    if (!window.confirm("Xóa buổi này? Hành động không thể hoàn tác.")) return;
+
+    setError(null);
+    startDelete(async () => {
+      try {
+        await deleteSession(sessionId);
+        router.push(`/b/${boardId}`);
+      } catch {
+        setError("Không xóa được buổi, thử lại sau");
       }
     });
   }
@@ -371,11 +421,22 @@ export function SessionForm({
 
       <button
         type="submit"
-        disabled={isPending}
+        disabled={isPending || isDeleting}
         className="rounded-md bg-accent px-4 py-3 text-base font-semibold text-on-accent disabled:opacity-60"
       >
-        {isPending ? "Đang lưu…" : "Lưu buổi"}
+        {isPending ? "Đang lưu…" : isEdit ? "Lưu thay đổi" : "Lưu buổi"}
       </button>
+
+      {isEdit && (
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={isPending || isDeleting}
+          className="rounded-md border border-danger px-4 py-3 text-base font-semibold text-danger disabled:opacity-60"
+        >
+          {isDeleting ? "Đang xóa…" : "Xóa buổi"}
+        </button>
+      )}
     </form>
   );
 }

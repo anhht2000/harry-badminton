@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boards, settlements } from "@/lib/db/schema";
+import { boards, members, settlements } from "@/lib/db/schema";
 import { requireUserId } from "@/lib/auth";
 import { assertOwner } from "@/lib/domain/guard";
 
@@ -25,6 +25,8 @@ export async function addSettlement(
   await loadOwnedBoard(boardId, userId);
   if (!Number.isInteger(amount) || amount <= 0) throw new Error("Số tiền phải là số nguyên dương");
   if (!DATE_RE.test(date)) throw new Error("Ngày sai định dạng (YYYY-MM-DD)");
+  const [member] = await db.select().from(members).where(eq(members.id, memberId));
+  if (!member || member.boardId !== boardId) throw new Error("Thành viên không thuộc board");
   const [s] = await db
     .insert(settlements)
     .values({ boardId, memberId, amount, date, note: note?.trim() || null })
