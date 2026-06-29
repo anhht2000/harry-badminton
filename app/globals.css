@@ -67,11 +67,6 @@
     position: relative;
     min-height: 100vh;
     background-color: var(--bg);
-    /* Glow radial amber/kem rat nhe phia tren nen */
-    background-image:
-      radial-gradient(70% 50% at 50% -10%, rgba(255, 185, 89, 0.10), transparent 70%),
-      radial-gradient(40% 40% at 100% 0%, rgba(255, 222, 185, 0.20), transparent 70%);
-    background-attachment: fixed;
     color: var(--fg);
     font-family: var(--font-roboto), system-ui, sans-serif;
     font-size: 16px;
@@ -83,7 +78,22 @@
       color var(--dur-base) var(--ease);
   }
 
-  .dark body {
+  /*
+    Glow radial amber/kem rat nhe — lop fixed rieng (GPU-composite) thay vi
+    background-attachment:fixed tren body (von repaint moi frame khi cuon -> giat).
+  */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(70% 50% at 50% -10%, rgba(255, 185, 89, 0.10), transparent 70%),
+      radial-gradient(40% 40% at 100% 0%, rgba(255, 222, 185, 0.20), transparent 70%);
+  }
+
+  .dark body::after {
     background-image:
       radial-gradient(70% 50% at 50% -10%, rgba(255, 185, 89, 0.10), transparent 70%),
       radial-gradient(40% 40% at 100% 0%, rgba(255, 185, 89, 0.06), transparent 70%);

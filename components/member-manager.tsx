@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { BoardMember } from "@/lib/queries";
 import {
@@ -402,11 +403,12 @@ function MemberAvatar({
     <div className="flex min-w-0 items-center gap-3">
       <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-base font-semibold text-accent">
         {member.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={member.avatarUrl}
             alt=""
             aria-hidden="true"
+            width={40}
+            height={40}
             className="h-10 w-10 rounded-full object-cover"
           />
         ) : (

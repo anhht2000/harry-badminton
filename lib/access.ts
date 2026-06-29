@@ -65,13 +65,30 @@ export async function requireBoardDeactivateAccess(
   return { board, userId, superAdmin };
 }
 
+// Suy ra vai tro co tinh ca super admin (full quyen = "leader" tren moi nhom).
+// Dung trong server component (page) thay cho roleFromMembers khi can full quyen super admin.
+export async function resolveRoleWithSuper(
+  ownerId: string,
+  linked: { userId: string | null; role: "secretary" | "member" }[],
+  userId: string
+): Promise<BoardRole | null> {
+  if (isSuperAdmin(await getCurrentUserEmail())) return "leader";
+  return roleFromMembers(ownerId, linked, userId);
+}
+
 // Dung trong server action: xac thuc dang nhap + kiem tra capability, nem loi neu khong du quyen.
+// Super admin: bo qua cap, coi nhu "leader" tren moi nhom.
 export async function requireBoardAccess(
   boardId: string,
   cap: (r: BoardRole) => boolean,
   message = "Không có quyền"
 ): Promise<{ board: Board; role: BoardRole; userId: string }> {
   const userId = await requireUserId();
+  if (isSuperAdmin(await getCurrentUserEmail())) {
+    const [board] = await db.select().from(boards).where(eq(boards.id, boardId));
+    if (!board) throw new Error("Không tìm thấy board");
+    return { board, role: "leader", userId };
+  }
   const res = await resolveBoardRole(boardId, userId);
   if (!res || !cap(res.role)) throw new Error(message);
   return { ...res, userId };

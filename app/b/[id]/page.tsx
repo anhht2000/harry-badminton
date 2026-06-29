@@ -23,10 +23,10 @@ export default async function BoardPage({ params }: { params: { id: string } }) 
   // Nhom draft (da deactivate): chi truong nhom + super admin xem duoc
   if (!data.board.active && role !== "leader" && !superAdmin) redirect("/");
 
-  const effectiveRole = role ?? "member";
+  const effectiveRole = superAdmin ? "leader" : role ?? "member";
   const manageBooks = canManageBooks(effectiveRole);
   const manageMembers = canManageMembers(effectiveRole);
-  const canToggleActive = role === "leader" || superAdmin;
+  const canToggleActive = effectiveRole === "leader";
 
   const sessions = data.sessions
     .slice()

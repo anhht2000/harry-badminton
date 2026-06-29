@@ -50,7 +50,9 @@ export async function uploadImage(
       Bucket: bucket,
       Key: key,
       Body: data,
-      ContentType: contentType
+      ContentType: contentType,
+      // Key la UUID bat bien -> cache vinh vien o browser/CDN/Next optimizer.
+      CacheControl: "public, max-age=31536000, immutable"
     })
   );
 

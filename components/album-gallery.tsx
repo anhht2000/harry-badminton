@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { BoardPhoto } from "@/lib/queries";
 import { uploadBoardPhoto, deleteBoardPhoto } from "@/lib/actions/photos";
@@ -125,17 +126,18 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
                     ? `Xem ảnh của ${photo.uploaderName}`
                     : "Xem ảnh lớn"
                 }
-                className="block w-full overflow-hidden rounded-md border border-line bg-surface-2 shadow-card outline-none transition-transform duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="relative block aspect-square w-full overflow-hidden rounded-md border border-line bg-surface-2 shadow-card outline-none transition-transform duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
-                <img
+                <Image
                   src={photo.url}
                   alt={
                     photo.uploaderName
                       ? `Ảnh do ${photo.uploaderName} tải lên`
                       : "Ảnh trong album"
                   }
-                  loading="lazy"
-                  className="aspect-square w-full object-cover"
+                  fill
+                  sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                  className="object-cover"
                 />
               </button>
 

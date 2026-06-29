@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/auth";
 import { getBoardData } from "@/lib/queries";
-import { roleFromMembers, canManageMembers } from "@/lib/access";
+import { resolveRoleWithSuper, canManageMembers } from "@/lib/access";
 import { MemberManager } from "@/components/member-manager";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default async function MembersPage({
   const data = await getBoardData(params.id);
 
   if (!data || !userId) notFound();
-  const role = roleFromMembers(data.board.ownerId, data.members, userId);
+  const role = await resolveRoleWithSuper(data.board.ownerId, data.members, userId);
   if (!role || !canManageMembers(role)) notFound();
 
   const usedMemberIds = new Set<string>();

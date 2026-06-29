@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getBoardData } from "@/lib/queries";
 import { getCurrentUserId } from "@/lib/auth";
-import { roleFromMembers, canManageBooks } from "@/lib/access";
+import { resolveRoleWithSuper, canManageBooks } from "@/lib/access";
 import { SessionForm } from "@/components/session-form";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export default async function NewSessionPage({
 
   const data = await getBoardData(params.id);
   if (!data) notFound();
-  const role = roleFromMembers(data.board.ownerId, data.members, userId);
+  const role = await resolveRoleWithSuper(data.board.ownerId, data.members, userId);
   if (!role || !canManageBooks(role)) redirect(`/b/${params.id}`);
 
   return (
