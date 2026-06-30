@@ -3,10 +3,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { SessionList, type SessionRow } from "@/components/session-list";
 import { BalanceTable } from "@/components/balance-table";
+import { OverviewSummary } from "@/components/overview-summary";
 import { AlbumGallery } from "@/components/album-gallery";
 import type { BoardMember, MemberSessionDebt, BoardPhoto } from "@/lib/queries";
 
-type Tab = "sessions" | "balances" | "photos";
+type Tab = "overview" | "sessions" | "balances" | "photos";
 
 interface BoardTabsProps {
   boardId: string;
@@ -21,7 +22,7 @@ interface BoardTabsProps {
 }
 
 export function BoardTabs({ boardId, shareUrl, members, sessions, balances, sessionDebts, photos, canManageBooks, canManageMembers }: BoardTabsProps) {
-  const [tab, setTab] = useState<Tab>("sessions");
+  const [tab, setTab] = useState<Tab>("overview");
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
@@ -67,6 +68,19 @@ export function BoardTabs({ boardId, shareUrl, members, sessions, balances, sess
         <button
           type="button"
           role="tab"
+          aria-selected={tab === "overview"}
+          onClick={() => setTab("overview")}
+          className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-soft ${
+            tab === "overview"
+              ? "bg-accent text-on-accent shadow-card"
+              : "text-accent-2 hover:text-accent"
+          }`}
+        >
+          Tổng kết
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={tab === "sessions"}
           onClick={() => setTab("sessions")}
           className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-soft ${
@@ -105,7 +119,9 @@ export function BoardTabs({ boardId, shareUrl, members, sessions, balances, sess
         </button>
       </div>
 
-      {tab === "sessions" ? (
+      {tab === "overview" ? (
+        <OverviewSummary boardId={boardId} members={members} balances={balances} />
+      ) : tab === "sessions" ? (
         <SessionList boardId={boardId} sessions={sessions} canManage={canManageBooks} />
       ) : tab === "balances" ? (
         <BalanceTable

@@ -86,8 +86,9 @@ export default async function SharePage({
         ) : (
           <ul className="flex flex-col gap-2">
             {balanceRows.map(({ name, balance }) => {
-              const owes = balance > 0;
-              const receives = balance < 0;
+              const rounded = Math.round(balance);
+              const owes = rounded > 0;
+              const receives = rounded < 0;
               const label = owes ? "còn nợ" : receives ? "được nhận" : "đã xong";
               const color = owes
                 ? "text-danger"
@@ -111,7 +112,7 @@ export default async function SharePage({
                     </div>
                     <span className="flex shrink-0 flex-col items-end leading-tight">
                       <span className={`num font-semibold ${color}`}>
-                        {formatVnd(Math.abs(balance))}
+                        {formatVnd(Math.abs(rounded))}
                       </span>
                       <span className="text-xs text-muted">{label}</span>
                     </span>

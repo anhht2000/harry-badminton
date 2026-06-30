@@ -9,6 +9,8 @@ import {
 } from "@/lib/actions/sessions";
 import { splitSession } from "@/lib/domain/split";
 import { formatVnd } from "@/lib/domain/money";
+import { MoneyInput } from "@/components/money-input";
+import { LoadingOverlay } from "@/components/loading-overlay";
 import type { BoardMember } from "@/lib/queries";
 
 interface ExpenseRow {
@@ -20,6 +22,7 @@ interface PaymentRow {
   key: string;
   memberId: string;
   amount: string;
+  full: boolean; // dong du: tu lay dung suat, khong nhap tay
 }
 
 const PRESETS = ["Sân", "Cầu", "Nước"];
@@ -86,9 +89,10 @@ export function SessionForm({
       ? initial.payments.map((p) => ({
           key: nextKey(),
           memberId: p.memberId,
-          amount: String(p.amount)
+          amount: String(p.amount),
+          full: false
         }))
-      : [{ key: nextKey(), memberId: members[0]?.id ?? "", amount: "" }]
+      : [{ key: nextKey(), memberId: members[0]?.id ?? "", amount: "", full: false }]
   );
 
   const expensesTotal = useMemo(
@@ -101,6 +105,16 @@ export function SessionForm({
     [attendees]
   );
 
+  // Dung suat cua mot nguoi (lam tron ve VND nguyen) — chi phu thuoc chi & so suat, khong phu thuoc tien ung.
+  function shareOf(memberId: string): number {
+    const count = attendees.get(memberId) ?? 0;
+    if (count <= 0 || totalHeads === 0 || expensesTotal === 0) return 0;
+    return Math.round((expensesTotal / totalHeads) * count);
+  }
+  function paymentAmount(row: PaymentRow): number {
+    return row.full ? shareOf(row.memberId) : toAmount(row.amount);
+  }
+
   const split = useMemo(() => {
     const expenses = expenseRows
       .map((e) => ({ amount: toAmount(e.amount) }))
@@ -108,7 +122,7 @@ export function SessionForm({
     const ids = [...attendees.keys()];
     const attendeeCounts = Object.fromEntries(attendees);
     const payments = paymentRows
-      .map((p) => ({ memberId: p.memberId, amount: toAmount(p.amount) }))
+      .map((p) => ({ memberId: p.memberId, amount: paymentAmount(p) }))
       .filter((p) => p.memberId && p.amount > 0);
     return splitSession({ expenses, attendeeIds: ids, attendeeCounts, payments });
   }, [expenseRows, attendees, paymentRows]);
@@ -147,7 +161,7 @@ export function SessionForm({
   function addPayment() {
     setPaymentRows((prev) => [
       ...prev,
-      { key: nextKey(), memberId: members[0]?.id ?? "", amount: "" }
+      { key: nextKey(), memberId: members[0]?.id ?? "", amount: "", full: false }
     ]);
   }
   function updatePayment(key: string, patch: Partial<PaymentRow>) {
@@ -163,7 +177,7 @@ export function SessionForm({
     setPaymentRows((prev) => {
       if (prev.length === 0) return prev;
       const [first, ...rest] = prev;
-      return [{ ...first, amount: String(expensesTotal) }, ...rest];
+      return [{ ...first, amount: String(expensesTotal), full: false }, ...rest];
     });
   }
 
@@ -175,7 +189,7 @@ export function SessionForm({
       .filter((row) => row.amount > 0);
     const attendeeList = [...attendees].map(([memberId, count]) => ({ memberId, count }));
     const payments = paymentRows
-      .map((row) => ({ memberId: row.memberId, amount: toAmount(row.amount) }))
+      .map((row) => ({ memberId: row.memberId, amount: paymentAmount(row) }))
       .filter((row) => row.memberId && row.amount > 0);
 
     if (attendeeList.length === 0) {
@@ -232,9 +246,12 @@ export function SessionForm({
     "h-11 rounded-xl border border-line bg-surface px-3 text-ink outline-none transition-colors duration-[var(--dur-fast)] ease-soft placeholder:text-muted focus:border-accent disabled:opacity-60";
   const removeBtnClass =
     "grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line bg-surface text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-danger hover:text-danger";
+  const checkboxClass =
+    "h-4 w-4 shrink-0 rounded border-line text-accent accent-accent focus:ring-accent";
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <LoadingOverlay show={isPending || isDeleting} label={isDeleting ? "Đang xóa…" : "Đang lưu…"} />
       <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-5 shadow-card">
         <p className="label-eyebrow">Ngày</p>
         <label htmlFor="session-date" className="sr-only">
@@ -358,17 +375,11 @@ export function SessionForm({
                 disabled={isPending}
                 className={`min-w-0 flex-1 ${fieldClass}`}
               />
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
                 value={row.amount}
                 placeholder="Số tiền"
                 aria-label="Số tiền khoản chi"
-                onChange={(e) =>
-                  updateExpense(row.key, {
-                    amount: e.target.value.replace(/\D/g, "")
-                  })
-                }
+                onValueChange={(raw) => updateExpense(row.key, { amount: raw })}
                 disabled={isPending}
                 className={`num w-32 text-right ${fieldClass}`}
               />
@@ -409,7 +420,7 @@ export function SessionForm({
 
         <ul className="flex flex-col gap-2">
           {paymentRows.map((row) => (
-            <li key={row.key} className="flex gap-2">
+            <li key={row.key} className="flex flex-wrap items-center gap-2">
               <select
                 value={row.memberId}
                 aria-label="Người ứng tiền"
@@ -425,19 +436,24 @@ export function SessionForm({
                   </option>
                 ))}
               </select>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={row.amount}
+              <label className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 text-sm font-medium text-ink">
+                <input
+                  type="checkbox"
+                  checked={row.full}
+                  aria-label="Đóng đủ suất"
+                  onChange={(e) => updatePayment(row.key, { full: e.target.checked })}
+                  disabled={isPending}
+                  className={checkboxClass}
+                />
+                Đủ
+              </label>
+              <MoneyInput
+                value={row.full ? String(shareOf(row.memberId)) : row.amount}
                 placeholder="Số tiền"
                 aria-label="Số tiền ứng"
-                onChange={(e) =>
-                  updatePayment(row.key, {
-                    amount: e.target.value.replace(/\D/g, "")
-                  })
-                }
-                disabled={isPending}
-                className={`num w-32 text-right ${fieldClass}`}
+                onValueChange={(raw) => updatePayment(row.key, { amount: raw })}
+                disabled={isPending || row.full}
+                className={`num w-28 text-right ${fieldClass}`}
               />
               <button
                 type="button"

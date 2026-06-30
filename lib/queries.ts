@@ -56,8 +56,10 @@ export interface BoardSettlement {
 export interface MemberSessionDebt {
   sessionId: string;
   date: string;
-  amount: number;
-  paid: boolean;
+  share: number; // phai dong buoi nay
+  paidAmount: number; // da dong (tong payment buoi nay)
+  net: number; // share - paidAmount: >0 con no, <0 duoc nhan, 0 da du
+  settled: boolean; // da danh dau "da tra" qua settlement
 }
 export interface BoardData {
   board: { id: string; name: string; shareToken: string; ownerId: string; active: boolean };
@@ -229,6 +231,7 @@ async function loadBoardSessions(boardId: string): Promise<BoardSession[]> {
 
 function toSessionInputs(sessions: BoardSession[]): SessionInput[] {
   return sessions.map((s) => ({
+    id: s.id,
     expenses: s.expenses.map((e) => ({ amount: e.amount })),
     attendeeIds: s.attendeeIds,
     attendeeCounts: s.attendeeCounts,
@@ -277,7 +280,7 @@ export async function getBoardData(boardId: string): Promise<BoardData | null> {
 
   const balances = computeBalances(
     toSessionInputs(sessionList),
-    settlementList.map((s) => ({ memberId: s.memberId, amount: s.amount }))
+    settlementRows.map((s) => ({ memberId: s.memberId, amount: s.amount, sessionId: s.sessionId }))
   );
 
   const paidSet = new Set(
@@ -287,24 +290,29 @@ export async function getBoardData(boardId: string): Promise<BoardData | null> {
   );
   const sessionDebts: Record<string, MemberSessionDebt[]> = {};
   for (const s of sessionList) {
-    const { net } = splitSession({
+    const r = splitSession({
       expenses: s.expenses.map((e) => ({ amount: e.amount })),
       attendeeIds: s.attendeeIds,
       attendeeCounts: s.attendeeCounts,
       payments: s.payments.map((p) => ({ memberId: p.memberId, amount: p.amount }))
     });
-    for (const [memberId, value] of Object.entries(net)) {
-      if (value <= 0) continue;
+    // Lich su day du: moi buoi member co tham gia (share>0) hoac da dong tien (paidAmount>0).
+    for (const memberId of Object.keys(r.net)) {
+      const share = r.shares[memberId] ?? 0;
+      const paidAmount = r.paid[memberId] ?? 0;
+      if (share === 0 && paidAmount === 0) continue;
       (sessionDebts[memberId] ??= []).push({
         sessionId: s.id,
         date: s.date,
-        amount: value,
-        paid: paidSet.has(`${memberId}:${s.id}`)
+        share,
+        paidAmount,
+        net: r.net[memberId],
+        settled: paidSet.has(`${memberId}:${s.id}`)
       });
     }
   }
   for (const list of Object.values(sessionDebts)) {
-    list.sort((a, b) => a.date.localeCompare(b.date));
+    list.sort((a, b) => b.date.localeCompare(a.date));
   }
 
   return {
@@ -351,7 +359,7 @@ export async function getBoardByShareToken(
 
   const balances = computeBalances(
     toSessionInputs(sessionList),
-    settlementRows.map((s) => ({ memberId: s.memberId, amount: s.amount }))
+    settlementRows.map((s) => ({ memberId: s.memberId, amount: s.amount, sessionId: s.sessionId }))
   );
 
   return {

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useTransition } from "react";
+import { useEffect, useOptimistic, useRef, useTransition } from "react";
 import { formatVnd } from "@/lib/domain/money";
 import {
   markSessionPaid,
@@ -17,7 +17,7 @@ interface BalanceTableProps {
   canManage?: boolean;
 }
 
-function shortDate(iso: string): string {
+export function shortDate(iso: string): string {
   const [, m, d] = iso.split("-");
   return `${d}/${m}`;
 }
@@ -48,8 +48,9 @@ export function BalanceTable({ boardId, members, balances, sessionDebts, canMana
       <h2 className="font-display text-lg font-semibold text-ink">Số dư</h2>
       <ul className="flex flex-col gap-3">
         {rows.map(({ member, balance, debts }) => {
-          const owes = balance > 0;
-          const receives = balance < 0;
+          const rounded = Math.round(balance);
+          const owes = rounded > 0;
+          const receives = rounded < 0;
           const label = owes ? "còn nợ" : receives ? "được nhận" : "đã xong";
           const color = owes ? "text-danger" : receives ? "text-ok" : "text-muted";
           return (
@@ -63,14 +64,14 @@ export function BalanceTable({ boardId, members, balances, sessionDebts, canMana
                 </span>
                 <span className="flex flex-col items-end gap-0.5 text-right">
                   <span className={`num text-lg font-bold ${color}`}>
-                    {formatVnd(Math.abs(balance))}
+                    {formatVnd(Math.abs(rounded))}
                   </span>
                   <span className={`text-xs font-medium ${color}`}>{label}</span>
                 </span>
               </div>
 
               {debts.length > 0 && canManage && (
-                <SessionChecklist boardId={boardId} memberId={member.id} debts={debts} />
+                <SessionChecklist boardId={boardId} memberId={member.id} debts={debts} canManage={canManage} />
               )}
             </li>
           );
@@ -80,20 +81,36 @@ export function BalanceTable({ boardId, members, balances, sessionDebts, canMana
   );
 }
 
-function SessionChecklist({
+export function SessionChecklist({
   boardId,
   memberId,
-  debts
+  debts,
+  canManage = true
 }: {
   boardId: string;
   memberId: string;
   debts: MemberSessionDebt[];
+  canManage?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const allRef = useRef<HTMLInputElement>(null);
 
-  const allPaid = debts.every((d) => d.paid);
-  const somePaid = debts.some((d) => d.paid);
+  // State doi NGAY khi click (optimistic), server reconcile sau -> khong cho round-trip.
+  const [optimisticDebts, applyOptimistic] = useOptimistic(
+    debts,
+    (state, action: { settled: boolean; sessionId?: string }) =>
+      state.map((d) =>
+        Math.round(d.net) > 0 && (action.sessionId === undefined || d.sessionId === action.sessionId)
+          ? { ...d, settled: action.settled }
+          : d
+      )
+  );
+
+  // Chi buoi con no (net>0) moi danh dau tra; buoi da du / duoc nhan chi hien lich su.
+  // Lam tron de bo phan le sub-1d (vd no 0,33d) -> coi nhu da du, tranh "con no 0d".
+  const debtRows = optimisticDebts.filter((d) => Math.round(d.net) > 0);
+  const allPaid = debtRows.length > 0 && debtRows.every((d) => d.settled);
+  const somePaid = debtRows.some((d) => d.settled);
 
   useEffect(() => {
     if (allRef.current) allRef.current.indeterminate = somePaid && !allPaid;
@@ -103,23 +120,35 @@ function SessionChecklist({
     if (allPaid) {
       if (!window.confirm("Bỏ đánh dấu tất cả các buổi đã trả? Số tiền sẽ tính nợ lại."))
         return;
-      startTransition(() => unmarkAllSessionsPaid(boardId, memberId));
+      startTransition(async () => {
+        applyOptimistic({ settled: false });
+        await unmarkAllSessionsPaid(boardId, memberId);
+      });
     } else {
-      startTransition(() => markAllSessionsPaid(boardId, memberId));
+      startTransition(async () => {
+        applyOptimistic({ settled: true });
+        await markAllSessionsPaid(boardId, memberId);
+      });
     }
   }
 
   function toggleOne(debt: MemberSessionDebt) {
-    if (debt.paid) {
+    if (debt.settled) {
       if (
         !window.confirm(
           `Bỏ đánh dấu đã trả buổi ${shortDate(debt.date)}? Số tiền sẽ tính nợ lại.`
         )
       )
         return;
-      startTransition(() => unmarkSessionPaid(boardId, memberId, debt.sessionId));
+      startTransition(async () => {
+        applyOptimistic({ settled: false, sessionId: debt.sessionId });
+        await unmarkSessionPaid(boardId, memberId, debt.sessionId);
+      });
     } else {
-      startTransition(() => markSessionPaid(boardId, memberId, debt.sessionId));
+      startTransition(async () => {
+        applyOptimistic({ settled: true, sessionId: debt.sessionId });
+        await markSessionPaid(boardId, memberId, debt.sessionId);
+      });
     }
   }
 
@@ -128,39 +157,64 @@ function SessionChecklist({
 
   return (
     <div className="mt-3 flex flex-col gap-1 rounded-xl border border-line bg-surface-2 p-3">
-      <label className="flex items-center gap-2.5 border-b border-line pb-2 text-sm font-medium text-ink">
-        <input
-          ref={allRef}
-          type="checkbox"
-          checked={allPaid}
-          disabled={pending}
-          onChange={toggleAll}
-          className={checkboxClass}
-        />
-        Tất cả các buổi
-      </label>
+      {canManage && debtRows.length > 0 && (
+        <label className="flex items-center gap-2.5 border-b border-line pb-2 text-sm font-medium text-ink">
+          <input
+            ref={allRef}
+            type="checkbox"
+            checked={allPaid}
+            disabled={pending}
+            onChange={toggleAll}
+            className={checkboxClass}
+          />
+          Tất cả các buổi
+        </label>
+      )}
       <ul className="flex flex-col">
-        {debts.map((debt) => (
-          <li key={debt.sessionId}>
-            <label className="flex items-center justify-between gap-2.5 py-1.5 text-sm text-muted">
-              <span className="flex items-center gap-2.5">
-                <input
-                  type="checkbox"
-                  checked={debt.paid}
-                  disabled={pending}
-                  onChange={() => toggleOne(debt)}
-                  className={checkboxClass}
-                />
-                <span className={debt.paid ? "text-muted line-through" : "text-ink"}>
-                  Buổi {shortDate(debt.date)}
+        {optimisticDebts.map((debt) => {
+          const net = Math.round(debt.net);
+          const owes = net > 0;
+          return (
+            <li key={debt.sessionId}>
+              <label className="flex items-center justify-between gap-2.5 py-1.5 text-sm">
+                <span className="flex items-center gap-2.5">
+                  {owes ? (
+                    <input
+                      type="checkbox"
+                      checked={debt.settled}
+                      disabled={pending || !canManage}
+                      onChange={() => toggleOne(debt)}
+                      className={checkboxClass}
+                    />
+                  ) : (
+                    <span className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  )}
+                  <span className="flex flex-col">
+                    <span className={debt.settled ? "text-muted line-through decoration-2" : "text-ink"}>
+                      Buổi {shortDate(debt.date)}
+                    </span>
+                    {debt.paidAmount > 0 && (
+                      <span className="text-xs text-muted">đã đóng {formatVnd(debt.paidAmount)}</span>
+                    )}
+                  </span>
                 </span>
-              </span>
-              <span className={`num font-medium ${debt.paid ? "text-muted" : "text-ink"}`}>
-                {formatVnd(debt.amount)}
-              </span>
-            </label>
-          </li>
-        ))}
+                <span className="num font-medium">
+                  {debt.settled ? (
+                    <span className="text-muted line-through decoration-2">
+                      còn nợ {formatVnd(net)}
+                    </span>
+                  ) : owes ? (
+                    <span className="text-danger">còn nợ {formatVnd(net)}</span>
+                  ) : net < 0 ? (
+                    <span className="text-ok">được nhận {formatVnd(-net)}</span>
+                  ) : (
+                    <span className="text-muted line-through decoration-2">đã đủ</span>
+                  )}
+                </span>
+              </label>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

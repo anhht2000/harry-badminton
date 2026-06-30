@@ -15,18 +15,19 @@ describe("splitSession", () => {
     expect(Object.values(r.net).reduce((s, x) => s + x, 0)).toBe(0);
   });
 
-  test("lẻ dồn vào người ứng", () => {
+  test("chia lẻ không làm tròn -> mỗi suất bằng nhau, không có người gánh dư", () => {
     const r = splitSession({
       expenses: [{ amount: 100000 }],
       attendeeIds: ["a", "b", "c"],
       payments: [{ memberId: "a", amount: 100000 }]
     });
-    expect(r.perHead).toBe(33000);
-    // 100000 - 33000*3 = 1000 dồn vào a
-    expect(r.shares).toEqual({ a: 34000, b: 33000, c: 33000 });
-    expect(Object.values(r.shares).reduce((s, x) => s + x, 0)).toBe(100000);
-    expect(r.net.a).toBe(34000 - 100000);
-    expect(Object.values(r.net).reduce((s, x) => s + x, 0)).toBe(0);
+    expect(r.perHead).toBeCloseTo(100000 / 3, 6);
+    expect(r.shares.a).toBeCloseTo(100000 / 3, 6);
+    expect(r.shares.b).toBeCloseTo(100000 / 3, 6);
+    expect(r.shares.c).toBeCloseTo(100000 / 3, 6);
+    expect(Object.values(r.shares).reduce((s, x) => s + x, 0)).toBeCloseTo(100000, 6);
+    expect(r.net.a).toBeCloseTo(100000 / 3 - 100000, 6);
+    expect(Object.values(r.net).reduce((s, x) => s + x, 0)).toBeCloseTo(0, 6);
   });
 
   test("người ứng không có mặt -> lẻ dồn attendee đầu", () => {

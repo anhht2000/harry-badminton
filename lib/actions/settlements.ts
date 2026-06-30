@@ -60,7 +60,7 @@ export async function markSessionPaid(
 
   const nets = await loadBoardSessionNets(boardId);
   const session = nets.find((s) => s.sessionId === sessionId);
-  const amount = session?.nets[memberId] ?? 0;
+  const amount = Math.round(session?.nets[memberId] ?? 0);
   if (amount <= 0) return; // buổi này không nợ, bỏ qua
 
   const existing = await db
@@ -112,7 +112,7 @@ export async function markAllSessionsPaid(boardId: string, memberId: string) {
       boardId,
       memberId,
       sessionId: s.sessionId,
-      amount: s.nets[memberId],
+      amount: Math.round(s.nets[memberId]),
       date: todayIso()
     }));
   if (toInsert.length > 0) await db.insert(settlements).values(toInsert);
