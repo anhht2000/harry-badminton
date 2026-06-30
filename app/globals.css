@@ -128,6 +128,21 @@
     outline-offset: 2px;
   }
 
+  /*
+    Autofill: trinh duyet (Chrome/iOS) ep nen vang/trang + chu toi len input,
+    pha tong dark cua minh. Ghi de de input giu nen surface + chu dung mau.
+  */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--fg);
+    caret-color: var(--fg);
+    -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+    box-shadow: 0 0 0 1000px var(--surface) inset;
+    transition: background-color 9999s ease-in-out 0s;
+  }
+
   /* Nhan nho dang chip: nen amber + chu dam toi -> tuong phan cao, noi bat */
   .label-eyebrow {
     display: inline-block;

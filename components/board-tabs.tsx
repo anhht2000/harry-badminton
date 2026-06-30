@@ -13,8 +13,7 @@ type Tab = "overview" | "sessions" | "balances" | "photos" | "install";
 const TABS: { key: Tab; label: string }[] = [
   { key: "overview", label: "Tổng kết" },
   { key: "sessions", label: "Buổi" },
-  { key: "balances", label: "Số dư" },
-  { key: "photos", label: "Ảnh" },
+  { key: "photos", label: "Ảnh/Video" },
   { key: "install", label: "Cài app" }
 ];
 

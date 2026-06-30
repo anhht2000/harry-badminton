@@ -12,6 +12,7 @@ import {
   photos
 } from "@/lib/db/schema";
 import { computeBalances, splitSession, type SessionInput } from "@/lib/domain/split";
+import { isVideoUrl } from "@/lib/domain/image";
 
 export interface BoardSessionExpense {
   id: string;
@@ -45,6 +46,7 @@ export interface BoardPhoto {
   url: string;
   uploaderName: string | null;
   createdAt: Date;
+  kind: "image" | "video";
 }
 export interface BoardSettlement {
   id: string;
@@ -96,7 +98,7 @@ async function loadBoardPhotos(boardId: string): Promise<BoardPhoto[]> {
     .from(photos)
     .where(eq(photos.boardId, boardId))
     .orderBy(desc(photos.createdAt));
-  return rows;
+  return rows.map((r) => ({ ...r, kind: isVideoUrl(r.url) ? "video" : "image" }));
 }
 
 export async function getBoardsByOwner(userId: string) {

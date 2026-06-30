@@ -1,11 +1,13 @@
 "use client";
+import { createPortal } from "react-dom";
 
 // Overlay loading toan man, hien NGAY khi bam (vd dang luu/xoa/import) -> khong cho man dong cung.
+// Portal ra body vi rule `body > * { z-index: 1 }` (globals.css) nhot fixed overlay neu render long nhau.
 export function LoadingOverlay({ show, label = "Đang lưu…" }: { show: boolean; label?: string }) {
-  if (!show) return null;
-  return (
+  if (!show || typeof document === "undefined") return null;
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] grid place-items-center bg-black/40 backdrop-blur-sm"
       role="status"
       aria-live="polite"
     >
@@ -13,7 +15,8 @@ export function LoadingOverlay({ show, label = "Đang lưu…" }: { show: boolea
         <Spinner />
         <span className="text-sm font-medium text-ink">{label}</span>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { upload } from "@vercel/blob/client";
 import type { BoardPhoto } from "@/lib/queries";
-import { uploadBoardPhoto, deleteBoardPhoto } from "@/lib/actions/photos";
+import { uploadBoardPhoto, addBoardVideo, deleteBoardPhoto } from "@/lib/actions/photos";
+import { validateVideo } from "@/lib/domain/image";
 
 interface AlbumGalleryProps {
   boardId: string;
@@ -60,23 +63,43 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
 
     startTransition(async () => {
       for (const file of list) {
+        const isVideo = file.type.startsWith("video/");
+        if (isVideo) {
+          const check = validateVideo(file.type, file.size);
+          if (!check.ok) {
+            setError(check.error ?? "Video không hợp lệ");
+            continue;
+          }
+        }
+
         const previewUrl = URL.createObjectURL(file);
         previewUrlsRef.current.add(previewUrl);
         const placeholder: BoardPhoto = {
           id: `preview-${Date.now()}-${Math.random()}`,
           url: previewUrl,
           uploaderName: name || null,
-          createdAt: new Date()
+          createdAt: new Date(),
+          kind: isVideo ? "video" : "image"
         };
         applyOptimistic({ type: "add", photo: placeholder });
 
         try {
-          const fd = new FormData();
-          fd.append("file", file);
-          if (name) fd.append("uploaderName", name);
-          await uploadBoardPhoto(boardId, fd);
+          if (isVideo) {
+            // Video: upload thang tu browser len Blob (server action gioi han ~4.5MB), roi ghi DB.
+            const blob = await upload(`badminton/albums/${boardId}/${file.name}`, file, {
+              access: "public",
+              handleUploadUrl: "/api/album-media",
+              clientPayload: JSON.stringify({ boardId })
+            });
+            await addBoardVideo(boardId, blob.url, name || undefined);
+          } else {
+            const fd = new FormData();
+            fd.append("file", file);
+            if (name) fd.append("uploaderName", name);
+            await uploadBoardPhoto(boardId, fd);
+          }
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Tải ảnh thất bại, thử lại sau");
+          setError(err instanceof Error ? err.message : "Tải lên thất bại, thử lại sau");
         }
       }
       router.refresh();
@@ -104,9 +127,9 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
       <div className="flex flex-col gap-1">
         <p className="label-eyebrow">Album</p>
         <h2 className="font-display text-xl font-bold tracking-tight text-ink sm:text-2xl">
-          Ảnh chung
+          Ảnh & Video
         </h2>
-        <p className="text-sm text-muted">Ai cũng có thể tải ảnh lên.</p>
+        <p className="text-sm text-muted">Ai cũng có thể tải ảnh, video (≤25MB) lên.</p>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -122,7 +145,7 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           multiple
           onChange={handleFiles}
           disabled={isPending}
@@ -137,7 +160,7 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
           className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full bg-accent px-5 font-medium text-on-accent shadow-card transition-[transform,background-color] duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 hover:bg-accent-2 disabled:translate-y-0 disabled:opacity-60"
         >
           <CameraIcon />
-          {isPending ? "Đang tải…" : "Tải ảnh lên"}
+          {isPending ? "Đang tải…" : "Tải ảnh/video"}
         </button>
       </div>
 
@@ -153,13 +176,14 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
             <CameraIcon size={22} />
           </span>
           <p className="max-w-prose text-sm text-muted">
-            Chưa có ảnh nào. Tải ảnh đầu tiên lên.
+            Chưa có ảnh hay video nào. Tải lên cái đầu tiên.
           </p>
         </div>
       ) : (
         <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
           {optimisticPhotos.map((photo) => {
             const isPreview = photo.id.startsWith("preview-");
+            const isVideo = photo.kind === "video";
             return (
               <li key={photo.id} className="group relative">
                 <button
@@ -175,7 +199,15 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
                   }
                   className="relative block aspect-square w-full overflow-hidden rounded-md border border-line bg-surface-2 shadow-card outline-none transition-transform duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-default disabled:hover:translate-y-0"
                 >
-                  {isPreview ? (
+                  {isVideo ? (
+                    <video
+                      src={photo.url}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      className={`h-full w-full object-cover ${isPreview ? "opacity-60" : ""}`}
+                    />
+                  ) : isPreview ? (
                     <img
                       src={photo.url}
                       alt="Đang tải ảnh…"
@@ -193,6 +225,13 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
                       sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
                       className="object-cover"
                     />
+                  )}
+                  {isVideo && !isPreview && (
+                    <span className="pointer-events-none absolute inset-0 grid place-items-center">
+                      <span className="grid h-11 w-11 place-items-center rounded-full bg-black/50 text-white">
+                        <PlayIcon />
+                      </span>
+                    </span>
                   )}
                   {isPreview && (
                     <span className="absolute inset-0 flex items-center justify-center">
@@ -248,13 +287,15 @@ function Lightbox({ photo, onClose }: LightboxProps) {
     };
   }, [onClose]);
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label={photo.uploaderName ? `Ảnh của ${photo.uploaderName}` : "Ảnh"}
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
     >
       <button
         type="button"
@@ -268,22 +309,33 @@ function Lightbox({ photo, onClose }: LightboxProps) {
         onClick={(e) => e.stopPropagation()}
         className="flex max-h-full max-w-3xl flex-col items-center gap-3"
       >
-        <img
-          src={photo.url}
-          alt={
-            photo.uploaderName
-              ? `Ảnh do ${photo.uploaderName} tải lên`
-              : "Ảnh trong album"
-          }
-          className="max-h-[80vh] w-auto rounded-md object-contain"
-        />
+        {photo.kind === "video" ? (
+          <video
+            src={photo.url}
+            controls
+            autoPlay
+            playsInline
+            className="max-h-[80vh] w-auto rounded-md"
+          />
+        ) : (
+          <img
+            src={photo.url}
+            alt={
+              photo.uploaderName
+                ? `Ảnh do ${photo.uploaderName} tải lên`
+                : "Ảnh trong album"
+            }
+            className="max-h-[80vh] w-auto rounded-md object-contain"
+          />
+        )}
         {photo.uploaderName && (
           <figcaption className="text-sm text-white/80">
             {photo.uploaderName}
           </figcaption>
         )}
       </figure>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -292,6 +344,14 @@ function CameraIcon({ size = 16 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L19 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
       <circle cx="12" cy="13" r="3.5" />
+    </svg>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z" />
     </svg>
   );
 }
