@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBoard } from "@/lib/actions/boards";
+import { LoadingOverlay } from "@/components/loading-overlay";
 
 export function CreateBoardForm() {
   const router = useRouter();
@@ -30,7 +31,9 @@ export function CreateBoardForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+    <>
+      <LoadingOverlay show={isPending} label="Đang tạo…" />
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
           ref={inputRef}
@@ -55,5 +58,6 @@ export function CreateBoardForm() {
         </p>
       )}
     </form>
+    </>
   );
 }

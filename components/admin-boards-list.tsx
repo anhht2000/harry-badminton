@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAllBoardsAdmin } from "@/lib/queries";
 import { BoardStatusControl } from "@/components/board-status-control";
+import { AdminBoardDelete } from "@/components/admin-board-delete";
 
 export async function AdminBoardsList() {
   const all = await getAllBoardsAdmin();
@@ -26,8 +27,9 @@ export async function AdminBoardsList() {
             {b.memberCount} thành viên · {b.sessionCount} buổi
           </p>
           <p className="text-xs text-muted">Trưởng nhóm: {b.ownerLabel}</p>
-          <div className="mt-auto pt-1">
+          <div className="mt-auto flex flex-col items-start gap-2 pt-1">
             <BoardStatusControl boardId={b.id} active={b.active} canToggle />
+            {!b.active && <AdminBoardDelete boardId={b.id} boardName={b.name} />}
           </div>
         </li>
       ))}

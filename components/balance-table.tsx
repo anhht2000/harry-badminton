@@ -155,6 +155,55 @@ export function SessionChecklist({
   const checkboxClass =
     "h-4 w-4 shrink-0 rounded border-line text-accent accent-accent focus:ring-accent";
 
+  // Con no chua tra -> day len dau, luon hien. Da tra / da du / duoc nhan -> gom vao collapse.
+  const activeRows = optimisticDebts.filter((d) => Math.round(d.net) > 0 && !d.settled);
+  const doneRows = optimisticDebts.filter((d) => !(Math.round(d.net) > 0 && !d.settled));
+
+  function renderRow(debt: MemberSessionDebt) {
+    const net = Math.round(debt.net);
+    const owes = net > 0;
+    return (
+      <li key={debt.sessionId}>
+        <label className="flex items-center justify-between gap-2.5 py-1.5 text-sm">
+          <span className="flex items-center gap-2.5">
+            {owes ? (
+              <input
+                type="checkbox"
+                checked={debt.settled}
+                disabled={pending || !canManage}
+                onChange={() => toggleOne(debt)}
+                className={checkboxClass}
+              />
+            ) : (
+              <span className="h-4 w-4 shrink-0" aria-hidden="true" />
+            )}
+            <span className="flex flex-col">
+              <span className={debt.settled ? "text-muted line-through decoration-2" : "text-ink"}>
+                Buổi {shortDate(debt.date)}
+              </span>
+              {debt.paidAmount > 0 && (
+                <span className="text-xs text-muted">đã đóng {formatVnd(debt.paidAmount)}</span>
+              )}
+            </span>
+          </span>
+          <span className="num font-medium">
+            {debt.settled ? (
+              <span className="text-muted line-through decoration-2">
+                còn nợ {formatVnd(net)}
+              </span>
+            ) : owes ? (
+              <span className="text-danger">còn nợ {formatVnd(net)}</span>
+            ) : net < 0 ? (
+              <span className="text-ok">được nhận {formatVnd(-net)}</span>
+            ) : (
+              <span className="text-muted line-through decoration-2">đã đủ</span>
+            )}
+          </span>
+        </label>
+      </li>
+    );
+  }
+
   return (
     <div className="mt-3 flex flex-col gap-1 rounded-xl border border-line bg-surface-2 p-3">
       {canManage && debtRows.length > 0 && (
@@ -170,53 +219,43 @@ export function SessionChecklist({
           Tất cả các buổi
         </label>
       )}
-      <ul className="flex flex-col">
-        {optimisticDebts.map((debt) => {
-          const net = Math.round(debt.net);
-          const owes = net > 0;
-          return (
-            <li key={debt.sessionId}>
-              <label className="flex items-center justify-between gap-2.5 py-1.5 text-sm">
-                <span className="flex items-center gap-2.5">
-                  {owes ? (
-                    <input
-                      type="checkbox"
-                      checked={debt.settled}
-                      disabled={pending || !canManage}
-                      onChange={() => toggleOne(debt)}
-                      className={checkboxClass}
-                    />
-                  ) : (
-                    <span className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  )}
-                  <span className="flex flex-col">
-                    <span className={debt.settled ? "text-muted line-through decoration-2" : "text-ink"}>
-                      Buổi {shortDate(debt.date)}
-                    </span>
-                    {debt.paidAmount > 0 && (
-                      <span className="text-xs text-muted">đã đóng {formatVnd(debt.paidAmount)}</span>
-                    )}
-                  </span>
-                </span>
-                <span className="num font-medium">
-                  {debt.settled ? (
-                    <span className="text-muted line-through decoration-2">
-                      còn nợ {formatVnd(net)}
-                    </span>
-                  ) : owes ? (
-                    <span className="text-danger">còn nợ {formatVnd(net)}</span>
-                  ) : net < 0 ? (
-                    <span className="text-ok">được nhận {formatVnd(-net)}</span>
-                  ) : (
-                    <span className="text-muted line-through decoration-2">đã đủ</span>
-                  )}
-                </span>
-              </label>
-            </li>
-          );
-        })}
-      </ul>
+
+      {activeRows.length > 0 && (
+        <ul className="flex flex-col">{activeRows.map(renderRow)}</ul>
+      )}
+      {activeRows.length === 0 && debtRows.length > 0 && (
+        <p className="py-1.5 text-sm font-medium text-ok">Đã trả hết các buổi còn nợ.</p>
+      )}
+
+      {doneRows.length > 0 && (
+        <details className="group mt-1 border-t border-line pt-1">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1.5 text-sm font-medium text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:text-ink">
+            <ChevronIcon />
+            Đã xong ({doneRows.length})
+          </summary>
+          <ul className="flex flex-col">{doneRows.map(renderRow)}</ul>
+        </details>
+      )}
     </div>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="shrink-0 transition-transform duration-[var(--dur-fast)] ease-soft group-open:rotate-90"
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
   );
 }
 

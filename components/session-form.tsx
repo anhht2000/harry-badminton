@@ -84,13 +84,24 @@ export function SessionForm({
         }))
       : [{ key: nextKey(), label: "", amount: "" }]
   );
+  // Suat dung cua mot nguoi tinh tu du lieu ban dau (luc mo form sua) — de tu tick "Du".
+  function initialShareOf(memberId: string): number {
+    if (!initial) return 0;
+    const total = initial.expenses.reduce((s, e) => s + e.amount, 0);
+    const heads = initial.attendees.reduce((s, a) => s + Math.max(1, Math.floor(a.count)), 0);
+    const att = initial.attendees.find((a) => a.memberId === memberId);
+    if (!att || heads === 0 || total === 0) return 0;
+    return Math.round((total / heads) * Math.max(1, Math.floor(att.count)));
+  }
+
   const [paymentRows, setPaymentRows] = useState<PaymentRow[]>(() =>
     initial && initial.payments.length > 0
       ? initial.payments.map((p) => ({
           key: nextKey(),
           memberId: p.memberId,
           amount: String(p.amount),
-          full: false
+          // Da ung dung suat -> tick "Du" san.
+          full: p.amount === initialShareOf(p.memberId)
         }))
       : [{ key: nextKey(), memberId: members[0]?.id ?? "", amount: "", full: false }]
   );

@@ -46,7 +46,7 @@ export async function deleteBoardPhoto(photoId: string) {
   if (!photo) throw new Error("Không tìm thấy ảnh");
   const { board } = await requireBoardAccess(photo.boardId, canManageBooks);
 
-  await deleteImage(photo.key);
+  await deleteImage(photo.url);
   await db.delete(photos).where(eq(photos.id, photoId));
 
   revalidatePath(`/b/${board.id}`);

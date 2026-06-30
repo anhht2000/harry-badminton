@@ -1,5 +1,5 @@
 "use client";
-import { useTransition } from "react";
+import { useOptimistic, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setBoardActive } from "@/lib/actions/boards";
 
@@ -14,6 +14,10 @@ export function BoardStatusControl({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [optimisticActive, applyOptimistic] = useOptimistic(
+    active,
+    (_state, next: boolean) => next
+  );
 
   function toggle(next: boolean) {
     if (
@@ -24,6 +28,7 @@ export function BoardStatusControl({
     )
       return;
     startTransition(async () => {
+      applyOptimistic(next);
       await setBoardActive(boardId, next);
       router.refresh();
     });
@@ -32,7 +37,7 @@ export function BoardStatusControl({
   const btnClass =
     "inline-flex h-8 items-center justify-center rounded-full border border-line bg-surface px-3 text-xs font-medium text-ink transition-[border-color,color] duration-[var(--dur-fast)] ease-soft hover:border-accent hover:text-accent disabled:opacity-60";
 
-  if (!active) {
+  if (!optimisticActive) {
     return (
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-danger bg-surface px-3 py-1 text-xs font-medium text-danger">

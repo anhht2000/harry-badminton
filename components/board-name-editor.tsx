@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useState, useOptimistic, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { renameBoard } from "@/lib/actions/boards";
 
@@ -17,6 +17,10 @@ export function BoardNameEditor({
   const [value, setValue] = useState(name);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [optimisticName, applyOptimistic] = useOptimistic(
+    name,
+    (_state, next: string) => next
+  );
 
   function save() {
     const clean = value.trim();
@@ -29,12 +33,14 @@ export function BoardNameEditor({
       return;
     }
     setError(null);
+    setEditing(false);
     startTransition(async () => {
+      applyOptimistic(clean);
       try {
         await renameBoard(boardId, clean);
-        setEditing(false);
         router.refresh();
       } catch (e) {
+        setEditing(true);
         setError(e instanceof Error ? e.message : "Đổi tên thất bại");
       }
     });
@@ -50,7 +56,7 @@ export function BoardNameEditor({
     return (
       <div className="flex items-center gap-2">
         <h1 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-          {name}
+          {optimisticName}
         </h1>
         {canEdit && (
           <button

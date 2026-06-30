@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { readImportFile } from "@/lib/import-read";
+import { LoadingOverlay } from "@/components/loading-overlay";
 import { parseRows, type ParseResult } from "@/lib/domain/import-parse";
 import { importSessions } from "@/lib/actions/import";
 import { formatVnd } from "@/lib/domain/money";
@@ -60,7 +61,9 @@ export function ImportWizard({ boardId }: { boardId: string }) {
   const canConfirm = !!parsed && !hasErrors && !isPending;
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
+      <LoadingOverlay show={isPending} label="Đang nhập…" />
+      <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
         <label
           htmlFor="import-file"
@@ -206,6 +209,7 @@ export function ImportWizard({ boardId }: { boardId: string }) {
         {isPending ? "Đang nhập…" : "Xác nhận nhập"}
       </button>
     </div>
+    </>
   );
 }
 

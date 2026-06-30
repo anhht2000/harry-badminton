@@ -1,13 +1,22 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SessionList, type SessionRow } from "@/components/session-list";
 import { BalanceTable } from "@/components/balance-table";
 import { OverviewSummary } from "@/components/overview-summary";
 import { AlbumGallery } from "@/components/album-gallery";
+import { InstallGuide, type InstallPromptEvent } from "@/components/install-guide";
 import type { BoardMember, MemberSessionDebt, BoardPhoto } from "@/lib/queries";
 
-type Tab = "overview" | "sessions" | "balances" | "photos";
+type Tab = "overview" | "sessions" | "balances" | "photos" | "install";
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: "overview", label: "Tổng kết" },
+  { key: "sessions", label: "Buổi" },
+  { key: "balances", label: "Số dư" },
+  { key: "photos", label: "Ảnh" },
+  { key: "install", label: "Cài app" }
+];
 
 interface BoardTabsProps {
   boardId: string;
@@ -22,8 +31,47 @@ interface BoardTabsProps {
 }
 
 export function BoardTabs({ boardId, shareUrl, members, sessions, balances, sessionDebts, photos, canManageBooks, canManageMembers }: BoardTabsProps) {
-  const [tab, setTab] = useState<Tab>("overview");
+  // Quan ly so (truong nhom/thu ky): uu tien tab Buoi len dau. Member: giu Tong ket dau.
+  const orderedTabs = canManageBooks
+    ? [...TABS.filter((t) => t.key === "sessions"), ...TABS.filter((t) => t.key !== "sessions")]
+    : TABS;
+  const [tab, setTab] = useState<Tab>(canManageBooks ? "sessions" : "overview");
   const [copied, setCopied] = useState(false);
+
+  // Bat su kien cai PWA som (truoc khi mo tab) de nut "Cai dat ngay" khong bi lo.
+  const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null);
+  const [installed, setInstalled] = useState(false);
+  const [isIos, setIsIos] = useState(false);
+
+  useEffect(() => {
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    setInstalled(standalone);
+    setIsIos(/iphone|ipad|ipod/i.test(window.navigator.userAgent));
+
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallEvent(e as InstallPromptEvent);
+    };
+    const onInstalled = () => {
+      setInstalled(true);
+      setInstallEvent(null);
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  async function handleInstall() {
+    if (!installEvent) return;
+    await installEvent.prompt();
+    await installEvent.userChoice;
+    setInstallEvent(null);
+  }
 
   async function handleShare() {
     const url = `${window.location.origin}${shareUrl}`;
@@ -65,58 +113,22 @@ export function BoardTabs({ boardId, shareUrl, members, sessions, balances, sess
         aria-label="Chế độ xem"
         className="flex gap-1 rounded-full bg-accent-soft p-1"
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "overview"}
-          onClick={() => setTab("overview")}
-          className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-soft ${
-            tab === "overview"
-              ? "bg-accent text-on-accent shadow-card"
-              : "text-accent-2 hover:text-accent"
-          }`}
-        >
-          Tổng kết
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "sessions"}
-          onClick={() => setTab("sessions")}
-          className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-soft ${
-            tab === "sessions"
-              ? "bg-accent text-on-accent shadow-card"
-              : "text-accent-2 hover:text-accent"
-          }`}
-        >
-          Buổi
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "balances"}
-          onClick={() => setTab("balances")}
-          className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-soft ${
-            tab === "balances"
-              ? "bg-accent text-on-accent shadow-card"
-              : "text-accent-2 hover:text-accent"
-          }`}
-        >
-          Số dư
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "photos"}
-          onClick={() => setTab("photos")}
-          className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-soft ${
-            tab === "photos"
-              ? "bg-accent text-on-accent shadow-card"
-              : "text-accent-2 hover:text-accent"
-          }`}
-        >
-          Ảnh
-        </button>
+        {orderedTabs.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`flex-1 whitespace-nowrap rounded-full px-3 py-2 text-sm transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-soft ${
+              tab === key
+                ? "bg-accent font-bold text-on-accent shadow-card"
+                : "font-medium text-accent-2 hover:text-accent"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {tab === "overview" ? (
@@ -131,8 +143,15 @@ export function BoardTabs({ boardId, shareUrl, members, sessions, balances, sess
           sessionDebts={sessionDebts}
           canManage={canManageBooks}
         />
-      ) : (
+      ) : tab === "photos" ? (
         <AlbumGallery boardId={boardId} photos={photos} canDelete={canManageBooks} />
+      ) : (
+        <InstallGuide
+          installed={installed}
+          canInstall={installEvent !== null}
+          isIos={isIos}
+          onInstall={handleInstall}
+        />
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useOptimistic, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { BoardMember } from "@/lib/queries";
@@ -15,6 +15,44 @@ import {
   setMemberRole
 } from "@/lib/actions/members";
 import { transferLeadership } from "@/lib/actions/boards";
+
+type OptimisticAction =
+  | { type: "add"; member: BoardMember }
+  | { type: "rename"; id: string; name: string }
+  | { type: "remove"; id: string }
+  | { type: "setRole"; id: string; role: "secretary" | "member" }
+  | { type: "setAvatar"; id: string; avatarUrl: string }
+  | { type: "removeAvatar"; id: string }
+  | { type: "link"; id: string; userId: string; linkedName: string | null }
+  | { type: "unlink"; id: string }
+  | { type: "transfer"; id: string; newOwnerId: string };
+
+function membersReducer(state: BoardMember[], action: OptimisticAction): BoardMember[] {
+  switch (action.type) {
+    case "add":
+      return [...state, action.member];
+    case "rename":
+      return state.map((m) => (m.id === action.id ? { ...m, name: action.name } : m));
+    case "remove":
+      return state.filter((m) => m.id !== action.id);
+    case "setRole":
+      return state.map((m) => (m.id === action.id ? { ...m, role: action.role } : m));
+    case "setAvatar":
+      return state.map((m) => (m.id === action.id ? { ...m, avatarUrl: action.avatarUrl } : m));
+    case "removeAvatar":
+      return state.map((m) => (m.id === action.id ? { ...m, avatarUrl: null } : m));
+    case "link":
+      return state.map((m) =>
+        m.id === action.id ? { ...m, userId: action.userId, linkedName: action.linkedName } : m
+      );
+    case "unlink":
+      return state.map((m) => (m.id === action.id ? { ...m, userId: null, linkedName: null } : m));
+    case "transfer":
+      return state;
+    default:
+      return state;
+  }
+}
 
 interface MemberManagerProps {
   boardId: string;
@@ -36,19 +74,9 @@ export function MemberManager({
   const [editingName, setEditingName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const used = new Set(usedMemberIds);
+  const [optimisticMembers, applyOptimistic] = useOptimistic(members, membersReducer);
 
-  function run(action: () => Promise<void>) {
-    setError(null);
-    startTransition(async () => {
-      try {
-        await action();
-        router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Có lỗi xảy ra, thử lại sau");
-      }
-    });
-  }
+  const used = new Set(usedMemberIds);
 
   function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -57,9 +85,25 @@ export function MemberManager({
       setError("Vui lòng nhập tên thành viên");
       return;
     }
-    run(async () => {
-      await addMember(boardId, name);
-      setNewName("");
+    setError(null);
+    const tempId = `temp-${Date.now()}`;
+    const tempMember: BoardMember = {
+      id: tempId,
+      name,
+      avatarUrl: null,
+      userId: null,
+      role: "member",
+      linkedName: null
+    };
+    startTransition(async () => {
+      applyOptimistic({ type: "add", member: tempMember });
+      try {
+        await addMember(boardId, name);
+        setNewName("");
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Có lỗi xảy ra, thử lại sau");
+      }
     });
   }
 
@@ -77,10 +121,18 @@ export function MemberManager({
       setError("Tên thành viên không được trống");
       return;
     }
-    run(async () => {
-      await renameMember(editingId, name);
-      setEditingId(null);
-      setEditingName("");
+    const id = editingId;
+    setError(null);
+    startTransition(async () => {
+      applyOptimistic({ type: "rename", id, name });
+      try {
+        await renameMember(id, name);
+        setEditingId(null);
+        setEditingName("");
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Có lỗi xảy ra, thử lại sau");
+      }
     });
   }
 
@@ -89,8 +141,15 @@ export function MemberManager({
       ? `${member.name} đã có trong một số buổi. Xoá sẽ ảnh hưởng tới số liệu các buổi đó. Vẫn xoá?`
       : `Xoá thành viên ${member.name}?`;
     if (!window.confirm(message)) return;
-    run(async () => {
-      await removeMember(member.id);
+    setError(null);
+    startTransition(async () => {
+      applyOptimistic({ type: "remove", id: member.id });
+      try {
+        await removeMember(member.id);
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Có lỗi xảy ra, thử lại sau");
+      }
     });
   }
 
@@ -124,7 +183,7 @@ export function MemberManager({
         </p>
       )}
 
-      {members.length === 0 ? (
+      {optimisticMembers.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line bg-surface px-6 py-12 text-center">
           <span className="grid h-12 w-12 place-items-center rounded-full bg-accent-soft text-accent">
             <UsersIcon />
@@ -138,7 +197,7 @@ export function MemberManager({
         </div>
       ) : (
         <ul className="flex flex-col gap-2.5">
-          {members.map((member) => (
+          {optimisticMembers.map((member) => (
             <li
               key={member.id}
               className="rounded-lg border border-line bg-surface px-3.5 py-3 shadow-card"
@@ -173,7 +232,7 @@ export function MemberManager({
               ) : (
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-3">
-                    <MemberAvatar member={member} usedInSession={used.has(member.id)} />
+                    <MemberAvatar member={member} usedInSession={used.has(member.id)} applyOptimistic={applyOptimistic} />
                     <div className="flex shrink-0 items-center gap-1">
                       <button
                         type="button"
@@ -195,7 +254,7 @@ export function MemberManager({
                       </button>
                     </div>
                   </div>
-                  <MemberRoleControls boardId={boardId} ownerId={ownerId} member={member} />
+                  <MemberRoleControls boardId={boardId} ownerId={ownerId} member={member} applyOptimistic={applyOptimistic} />
                 </div>
               )}
             </li>
@@ -209,11 +268,13 @@ export function MemberManager({
 function MemberRoleControls({
   boardId,
   ownerId,
-  member
+  member,
+  applyOptimistic
 }: {
   boardId: string;
   ownerId: string;
   member: BoardMember;
+  applyOptimistic: (action: OptimisticAction) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -223,18 +284,6 @@ function MemberRoleControls({
   const isLeader = !!member.userId && member.userId === ownerId;
   const isLinked = !!member.userId;
 
-  function run(action: () => Promise<unknown>) {
-    setError(null);
-    startTransition(async () => {
-      try {
-        await action();
-        router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Có lỗi xảy ra, thử lại sau");
-      }
-    });
-  }
-
   function handleLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const id = accountId.trim();
@@ -242,9 +291,16 @@ function MemberRoleControls({
       setError("Dán mã tài khoản của thành viên");
       return;
     }
-    run(async () => {
-      await linkMemberAccount(member.id, id);
-      setAccountId("");
+    setError(null);
+    startTransition(async () => {
+      applyOptimistic({ type: "link", id: member.id, userId: id, linkedName: null });
+      try {
+        await linkMemberAccount(member.id, id);
+        setAccountId("");
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Có lỗi xảy ra, thử lại sau");
+      }
     });
   }
 
@@ -255,7 +311,42 @@ function MemberRoleControls({
       )
     )
       return;
-    run(() => transferLeadership(boardId, member.id));
+    setError(null);
+    startTransition(async () => {
+      applyOptimistic({ type: "transfer", id: member.id, newOwnerId: member.userId ?? member.id });
+      try {
+        await transferLeadership(boardId, member.id);
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Có lỗi xảy ra, thử lại sau");
+      }
+    });
+  }
+
+  function handleSetRole(role: "secretary" | "member") {
+    setError(null);
+    startTransition(async () => {
+      applyOptimistic({ type: "setRole", id: member.id, role });
+      try {
+        await setMemberRole(member.id, role);
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Có lỗi xảy ra, thử lại sau");
+      }
+    });
+  }
+
+  function handleUnlink() {
+    setError(null);
+    startTransition(async () => {
+      applyOptimistic({ type: "unlink", id: member.id });
+      try {
+        await unlinkMemberAccount(member.id);
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Có lỗi xảy ra, thử lại sau");
+      }
+    });
   }
 
   const badge = isLeader ? "Trưởng nhóm" : member.role === "secretary" ? "Thư ký" : "Thành viên";
@@ -305,7 +396,7 @@ function MemberRoleControls({
             <select
               value={member.role}
               disabled={pending}
-              onChange={(e) => run(() => setMemberRole(member.id, e.target.value as "secretary" | "member"))}
+              onChange={(e) => handleSetRole(e.target.value as "secretary" | "member")}
               className="h-9 rounded-full border border-line bg-surface px-3 text-xs text-ink outline-none transition-colors duration-[var(--dur-fast)] ease-soft focus:border-accent disabled:opacity-60"
             >
               <option value="member">Thành viên</option>
@@ -323,7 +414,7 @@ function MemberRoleControls({
           </button>
           <button
             type="button"
-            onClick={() => run(() => unlinkMemberAccount(member.id))}
+            onClick={handleUnlink}
             disabled={pending}
             className="inline-flex h-9 items-center rounded-full border border-line bg-surface px-3 text-xs font-medium text-muted transition-colors duration-[var(--dur-fast)] ease-soft hover:border-danger hover:text-danger disabled:opacity-60"
           >
@@ -360,10 +451,12 @@ function CrownIcon() {
 
 function MemberAvatar({
   member,
-  usedInSession
+  usedInSession,
+  applyOptimistic
 }: {
   member: BoardMember;
   usedInSession: boolean;
+  applyOptimistic: (action: OptimisticAction) => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -374,15 +467,19 @@ function MemberAvatar({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    const previewUrl = URL.createObjectURL(file);
     setError(null);
     const fd = new FormData();
     fd.append("file", file);
     startTransition(async () => {
+      applyOptimistic({ type: "setAvatar", id: member.id, avatarUrl: previewUrl });
       try {
         await setMemberAvatar(member.id, fd);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Không tải được ảnh, thử lại sau");
+      } finally {
+        URL.revokeObjectURL(previewUrl);
       }
     });
   }
@@ -390,6 +487,7 @@ function MemberAvatar({
   function handleRemoveAvatar() {
     setError(null);
     startTransition(async () => {
+      applyOptimistic({ type: "removeAvatar", id: member.id });
       try {
         await removeMemberAvatar(member.id);
         router.refresh();

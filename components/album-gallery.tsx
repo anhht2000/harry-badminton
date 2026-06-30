@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { BoardPhoto } from "@/lib/queries";
@@ -12,6 +12,16 @@ interface AlbumGalleryProps {
   canDelete?: boolean;
 }
 
+type PhotoAction =
+  | { type: "delete"; id: string }
+  | { type: "add"; photo: BoardPhoto };
+
+function photosReducer(state: BoardPhoto[], action: PhotoAction): BoardPhoto[] {
+  if (action.type === "delete") return state.filter((p) => p.id !== action.id);
+  if (action.type === "add") return [action.photo, ...state];
+  return state;
+}
+
 export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGalleryProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -19,6 +29,27 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
   const [uploaderName, setUploaderName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<BoardPhoto | null>(null);
+  const previewUrlsRef = useRef<Set<string>>(new Set());
+
+  const [optimisticPhotos, applyOptimistic] = useOptimistic(photos, photosReducer);
+
+  useEffect(() => {
+    const current = previewUrlsRef.current;
+    photos.forEach((p) => {
+      if (current.has(p.url)) {
+        URL.revokeObjectURL(p.url);
+        current.delete(p.url);
+      }
+    });
+  }, [photos]);
+
+  useEffect(() => {
+    const urls = previewUrlsRef.current;
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u));
+      urls.clear();
+    };
+  }, []);
 
   function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -28,17 +59,27 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
     setError(null);
 
     startTransition(async () => {
-      try {
-        for (const file of list) {
+      for (const file of list) {
+        const previewUrl = URL.createObjectURL(file);
+        previewUrlsRef.current.add(previewUrl);
+        const placeholder: BoardPhoto = {
+          id: `preview-${Date.now()}-${Math.random()}`,
+          url: previewUrl,
+          uploaderName: name || null,
+          createdAt: new Date()
+        };
+        applyOptimistic({ type: "add", photo: placeholder });
+
+        try {
           const fd = new FormData();
           fd.append("file", file);
           if (name) fd.append("uploaderName", name);
           await uploadBoardPhoto(boardId, fd);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Tải ảnh thất bại, thử lại sau");
         }
-        router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Tải ảnh thất bại, thử lại sau");
       }
+      router.refresh();
     });
 
     e.target.value = "";
@@ -48,6 +89,7 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
     if (!window.confirm("Xoá ảnh này khỏi album?")) return;
     setError(null);
     startTransition(async () => {
+      applyOptimistic({ type: "delete", id: photo.id });
       try {
         await deleteBoardPhoto(photo.id);
         router.refresh();
@@ -105,7 +147,7 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
         </p>
       )}
 
-      {photos.length === 0 ? (
+      {optimisticPhotos.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line bg-surface px-6 py-12 text-center">
           <span className="grid h-12 w-12 place-items-center rounded-full bg-accent-soft text-accent">
             <CameraIcon size={22} />
@@ -116,50 +158,69 @@ export function AlbumGallery({ boardId, photos, canDelete = false }: AlbumGaller
         </div>
       ) : (
         <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
-          {photos.map((photo) => (
-            <li key={photo.id} className="group relative">
-              <button
-                type="button"
-                onClick={() => setLightbox(photo)}
-                aria-label={
-                  photo.uploaderName
-                    ? `Xem ảnh của ${photo.uploaderName}`
-                    : "Xem ảnh lớn"
-                }
-                className="relative block aspect-square w-full overflow-hidden rounded-md border border-line bg-surface-2 shadow-card outline-none transition-transform duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                <Image
-                  src={photo.url}
-                  alt={
-                    photo.uploaderName
-                      ? `Ảnh do ${photo.uploaderName} tải lên`
-                      : "Ảnh trong album"
-                  }
-                  fill
-                  sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-                  className="object-cover"
-                />
-              </button>
-
-              {photo.uploaderName && (
-                <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate rounded-b-md bg-gradient-to-t from-black/60 to-transparent px-2 py-1 text-xs font-medium text-white">
-                  {photo.uploaderName}
-                </span>
-              )}
-
-              {canDelete && (
+          {optimisticPhotos.map((photo) => {
+            const isPreview = photo.id.startsWith("preview-");
+            return (
+              <li key={photo.id} className="group relative">
                 <button
                   type="button"
-                  onClick={() => handleDelete(photo)}
-                  disabled={isPending}
-                  aria-label="Xoá ảnh"
-                  className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-full border border-line bg-surface/90 text-muted shadow-card backdrop-blur transition-colors duration-[var(--dur-fast)] ease-soft hover:border-danger hover:text-danger focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
+                  onClick={() => !isPreview && setLightbox(photo)}
+                  disabled={isPreview}
+                  aria-label={
+                    isPreview
+                      ? "Đang tải ảnh…"
+                      : photo.uploaderName
+                      ? `Xem ảnh của ${photo.uploaderName}`
+                      : "Xem ảnh lớn"
+                  }
+                  className="relative block aspect-square w-full overflow-hidden rounded-md border border-line bg-surface-2 shadow-card outline-none transition-transform duration-[var(--dur-fast)] ease-soft hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-default disabled:hover:translate-y-0"
                 >
-                  <TrashIcon />
+                  {isPreview ? (
+                    <img
+                      src={photo.url}
+                      alt="Đang tải ảnh…"
+                      className="h-full w-full object-cover opacity-60"
+                    />
+                  ) : (
+                    <Image
+                      src={photo.url}
+                      alt={
+                        photo.uploaderName
+                          ? `Ảnh do ${photo.uploaderName} tải lên`
+                          : "Ảnh trong album"
+                      }
+                      fill
+                      sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                      className="object-cover"
+                    />
+                  )}
+                  {isPreview && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <SpinnerIcon />
+                    </span>
+                  )}
                 </button>
-              )}
-            </li>
-          ))}
+
+                {photo.uploaderName && (
+                  <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate rounded-b-md bg-gradient-to-t from-black/60 to-transparent px-2 py-1 text-xs font-medium text-white">
+                    {photo.uploaderName}
+                  </span>
+                )}
+
+                {canDelete && !isPreview && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(photo)}
+                    disabled={isPending}
+                    aria-label="Xoá ảnh"
+                    className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-full border border-line bg-surface/90 text-muted shadow-card backdrop-blur transition-colors duration-[var(--dur-fast)] ease-soft hover:border-danger hover:text-danger focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
+                  >
+                    <TrashIcon />
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -247,6 +308,14 @@ function CloseIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="animate-spin">
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
     </svg>
   );
 }

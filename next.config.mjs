@@ -5,7 +5,8 @@ export default {
     minimumCacheTTL: 31536000,
     remotePatterns: [
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
-      { protocol: "https", hostname: "*.s3.us-east-1.amazonaws.com" }
+      { protocol: "https", hostname: "*.s3.us-east-1.amazonaws.com" },
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" }
     ]
   }
 };

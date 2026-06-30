@@ -1,11 +1,5 @@
-import Link from "next/link";
 import { getBoardsForUser } from "@/lib/queries";
-
-const ROLE_LABEL = {
-  leader: "Trưởng nhóm",
-  secretary: "Thư ký",
-  member: "Thành viên"
-} as const;
+import { BoardListClient } from "@/components/board-list-client";
 
 export async function BoardList({ userId }: { userId: string }) {
   const boards = await getBoardsForUser(userId);
@@ -27,63 +21,7 @@ export async function BoardList({ userId }: { userId: string }) {
     );
   }
 
-  return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {boards.map((board) => (
-        <li key={board.id}>
-          <Link
-            href={`/b/${board.id}`}
-            className="group flex h-full flex-col gap-4 rounded-lg border border-line bg-surface p-5 text-ink no-underline shadow-card transition-[transform,box-shadow,border-color] duration-[var(--dur-base)] ease-soft hover:-translate-y-0.5 hover:border-accent hover:shadow-lg"
-          >
-            <div className="flex items-center justify-between">
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-accent-soft text-accent">
-                <ShuttlecockMark />
-              </span>
-              <span
-                aria-hidden="true"
-                className="text-muted transition-transform duration-[var(--dur-base)] ease-soft group-hover:translate-x-0.5 group-hover:text-accent"
-              >
-                <ArrowIcon />
-              </span>
-            </div>
-            <div className="flex flex-col gap-2">
-              <span className="font-display text-lg font-semibold leading-snug text-ink">
-                {board.name}
-              </span>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="w-fit rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
-                  {ROLE_LABEL[board.role]}
-                </span>
-                {!board.active && (
-                  <span className="w-fit rounded-full border border-danger px-2 py-0.5 text-xs font-medium text-danger">
-                    Bản nháp
-                  </span>
-                )}
-              </div>
-            </div>
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function ShuttlecockMark() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 21a3 3 0 0 0 3-3l.6-7.2L12 8l-3.6 2.8L9 18a3 3 0 0 0 3 3Z" />
-      <path d="M9 18h6" />
-      <path d="M12 8l1.5-4.5M12 8l-2-4M12 8l4 1M12 8l-4 1" />
-    </svg>
-  );
-}
-
-function ArrowIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 12h14M13 6l6 6-6 6" />
-    </svg>
-  );
+  return <BoardListClient boards={boards} />;
 }
 
 function PlusGroupIcon() {

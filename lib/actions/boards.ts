@@ -24,7 +24,9 @@ export async function renameBoard(boardId: string, name: string) {
 }
 
 export async function deleteBoard(boardId: string) {
-  await requireBoardAccess(boardId, canManageBoard);
+  const { board } = await requireBoardAccess(boardId, canManageBoard);
+  // Chi xoa duoc nhom da an (inactive) — tranh xoa nham nhom dang dung.
+  if (board.active) throw new Error("Phải ẩn nhóm trước khi xóa");
   await db.delete(boards).where(eq(boards.id, boardId));
   revalidatePath("/");
 }
