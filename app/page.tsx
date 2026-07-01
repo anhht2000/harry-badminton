@@ -1,5 +1,7 @@
 import { getCurrentUserId, getCurrentUserEmail } from "@/lib/auth";
 import { isSuperAdmin } from "@/lib/access";
+import { getTopBoardIdForUser } from "@/lib/queries";
+import { BoardView } from "@/components/board-view";
 import { BoardList } from "@/components/board-list";
 import { PublicBoardList } from "@/components/public-board-list";
 import { AdminBoardsList } from "@/components/admin-boards-list";
@@ -7,7 +9,7 @@ import { CreateBoardForm } from "@/components/create-board-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: { all?: string } }) {
   let userId: string | null = null;
   let superAdmin = false;
   try {
@@ -19,6 +21,23 @@ export default async function Home() {
 
   if (!userId) {
     return <HomeHero />;
+  }
+
+  // Mac dinh hien board hay dung nhat; ?all=1 de xem toan bo danh sach.
+  if (!searchParams?.all) {
+    const topBoardId = await getTopBoardIdForUser(userId);
+    if (topBoardId) {
+      return (
+        <BoardView
+          boardId={topBoardId}
+          userId={userId}
+          superAdmin={superAdmin}
+          backHref="/?all=1"
+          backLabel="Tất cả nhóm"
+          recordVisit={false}
+        />
+      );
+    }
   }
 
   return (
