@@ -1,4 +1,4 @@
-import { eq, ne, and, inArray, desc, count } from "drizzle-orm";
+import { eq, ne, and, or, isNotNull, inArray, desc, count } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   boards,
@@ -9,10 +9,12 @@ import {
   attendees,
   payments,
   settlements,
-  photos
+  photos,
+  boardVisits
 } from "@/lib/db/schema";
 import { computeBalances, splitSession, type SessionInput } from "@/lib/domain/split";
 import { isVideoUrl } from "@/lib/domain/image";
+import { nextVisitScore } from "@/lib/domain/board-rank";
 
 export interface BoardSessionExpense {
   id: string;
@@ -114,16 +116,17 @@ export interface UserBoard {
 
 // Nhom user co the truy cap: so huu (truong nhom) HOAC da link member.
 export async function getBoardsForUser(userId: string): Promise<UserBoard[]> {
-  const owned = await db
-    .select({ id: boards.id, name: boards.name, active: boards.active })
-    .from(boards)
-    .where(eq(boards.ownerId, userId));
-
-  const linked = await db
-    .select({ id: boards.id, name: boards.name, active: boards.active, role: members.role })
-    .from(members)
-    .innerJoin(boards, eq(members.boardId, boards.id))
-    .where(and(eq(members.userId, userId), ne(boards.ownerId, userId)));
+  const [owned, linked] = await Promise.all([
+    db
+      .select({ id: boards.id, name: boards.name, active: boards.active })
+      .from(boards)
+      .where(eq(boards.ownerId, userId)),
+    db
+      .select({ id: boards.id, name: boards.name, active: boards.active, role: members.role })
+      .from(members)
+      .innerJoin(boards, eq(members.boardId, boards.id))
+      .where(and(eq(members.userId, userId), ne(boards.ownerId, userId)))
+  ]);
 
   const result: UserBoard[] = owned.map((b) => ({ id: b.id, name: b.name, role: "leader", active: b.active }));
   const seen = new Set(result.map((b) => b.id));
@@ -466,4 +469,46 @@ export async function getAllBoardsAdmin(): Promise<AdminBoard[]> {
     memberCount: memberCountByBoard.get(b.id) ?? 0,
     sessionCount: sessionCountByBoard.get(b.id) ?? 0
   }));
+}
+
+// Ghi 1 luot truy cap board cho user (upsert co decay). Chi goi khi user da qua check quyen.
+export async function recordBoardVisit(userId: string, boardId: string): Promise<void> {
+  const now = new Date();
+  const [row] = await db
+    .select()
+    .from(boardVisits)
+    .where(and(eq(boardVisits.userId, userId), eq(boardVisits.boardId, boardId)))
+    .limit(1);
+
+  if (!row) {
+    await db.insert(boardVisits).values({ userId, boardId, score: 1, lastVisitedAt: now });
+    return;
+  }
+
+  const score = nextVisitScore(row.score, row.lastVisitedAt, now);
+  await db
+    .update(boardVisits)
+    .set({ score, lastVisitedAt: now })
+    .where(and(eq(boardVisits.userId, userId), eq(boardVisits.boardId, boardId)));
+}
+
+// Board co score cao nhat ma user van truy cap duoc (owner hoac member) va con active.
+// Tra ve null neu user chua vao board nao hoac khong con board hop le.
+export async function getTopBoardIdForUser(userId: string): Promise<string | null> {
+  const rows = await db
+    .select({ boardId: boardVisits.boardId })
+    .from(boardVisits)
+    .innerJoin(boards, eq(boards.id, boardVisits.boardId))
+    .leftJoin(members, and(eq(members.boardId, boards.id), eq(members.userId, userId)))
+    .where(
+      and(
+        eq(boardVisits.userId, userId),
+        eq(boards.active, true),
+        or(eq(boards.ownerId, userId), isNotNull(members.userId))
+      )
+    )
+    .orderBy(desc(boardVisits.score))
+    .limit(1);
+
+  return rows[0]?.boardId ?? null;
 }
