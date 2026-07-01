@@ -31,7 +31,13 @@ export async function BoardView({
   if (!role && !superAdmin) redirect(backHref);
   if (!data.board.active && role !== "leader" && !superAdmin) redirect(backHref);
 
-  if (recordVisit) await recordBoardVisit(userId, boardId);
+  if (recordVisit) {
+    try {
+      await recordBoardVisit(userId, boardId);
+    } catch (err) {
+      console.error("recordBoardVisit failed", err);
+    }
+  }
 
   const effectiveRole = superAdmin ? "leader" : role ?? "member";
   const manageBooks = canManageBooks(effectiveRole);

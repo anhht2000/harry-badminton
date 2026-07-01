@@ -480,16 +480,15 @@ export async function recordBoardVisit(userId: string, boardId: string): Promise
     .where(and(eq(boardVisits.userId, userId), eq(boardVisits.boardId, boardId)))
     .limit(1);
 
-  if (!row) {
-    await db.insert(boardVisits).values({ userId, boardId, score: 1, lastVisitedAt: now });
-    return;
-  }
+  const score = row ? nextVisitScore(row.score, row.lastVisitedAt, now) : 1;
 
-  const score = nextVisitScore(row.score, row.lastVisitedAt, now);
   await db
-    .update(boardVisits)
-    .set({ score, lastVisitedAt: now })
-    .where(and(eq(boardVisits.userId, userId), eq(boardVisits.boardId, boardId)));
+    .insert(boardVisits)
+    .values({ userId, boardId, score, lastVisitedAt: now })
+    .onConflictDoUpdate({
+      target: [boardVisits.userId, boardVisits.boardId],
+      set: { score, lastVisitedAt: now }
+    });
 }
 
 // Board co score cao nhat ma user van truy cap duoc (owner hoac member) va con active.
