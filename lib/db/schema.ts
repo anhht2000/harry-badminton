@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, primaryKey, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, timestamp, primaryKey, boolean } from "drizzle-orm/pg-core";
 
 const uuid = () => text("id").primaryKey().$defaultFn(() => crypto.randomUUID());
 
@@ -88,3 +88,11 @@ export const settlements = pgTable("settlements", {
   date: text("date").notNull(),
   note: text("note")
 });
+
+// Trong so truy cap board theo tung user (EMA co decay). Dung de chon board top len trang chu.
+export const boardVisits = pgTable("board_visits", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  boardId: text("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
+  score: real("score").notNull().default(0),
+  lastVisitedAt: timestamp("last_visited_at", { withTimezone: true, mode: "date" }).notNull().defaultNow()
+}, (t) => ({ pk: primaryKey({ columns: [t.userId, t.boardId] }) }));

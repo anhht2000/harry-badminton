@@ -15,6 +15,13 @@
       "when": 1782707361165,
       "tag": "0001_pretty_catseye",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782870072355,
+      "tag": "0002_bouncy_blizzard",
+      "breakpoints": true
     }
   ]
 }
