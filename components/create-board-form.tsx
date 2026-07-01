@@ -42,7 +42,7 @@ export function CreateBoardForm() {
           placeholder="Tên nhóm mới, ví dụ: Cầu lông thứ 5"
           aria-label="Tên nhóm mới"
           disabled={isPending}
-          className="h-11 flex-1 rounded-full border border-line bg-surface px-4 text-ink shadow-card outline-none transition-colors duration-[var(--dur-fast)] ease-soft placeholder:text-muted focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
+          className="h-11 w-full sm:flex-1 rounded-full border border-line bg-surface px-4 text-ink shadow-card outline-none transition-colors duration-[var(--dur-fast)] ease-soft placeholder:text-muted focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
         />
         <button
           type="submit"
